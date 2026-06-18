@@ -1,0 +1,55 @@
+{
+  "appName": "TruWell AI",
+  "tabs": {
+    "home": "Home",
+    "scan": "Scan",
+    "wellness": "Wellness",
+    "safecircle": "SafeCircle",
+    "profile": "Profile"
+  },
+  "home": {
+    "greeting": "Your guardian, coach, companion.",
+    "scanCta": "Scan product",
+    "assistantCta": "Health assistant",
+    "disclaimer": "Wellness info only — not medical advice."
+  },
+  "scan": {
+    "barcode": "Barcode",
+    "ingredient": "Ingredients",
+    "calorie": "Calories",
+    "grantCamera": "Enable camera",
+    "analyzing": "Analyzing…"
+  },
+  "safecircle": {
+    "title": "SafeCircle",
+    "subtitle": "Community alerts, reviews, and trending picks.",
+    "alerts": "Safety & recalls",
+    "trending": "Trending picks",
+    "reviews": "Community reviews",
+    "noAlerts": "No alerts right now.",
+    "noTrending": "No products in the catalog yet.",
+    "noReviews": "No reviews yet — scan a product and be the first.",
+    "generalReview": "General note"
+  },
+  "comparison": {
+    "title": "Compare",
+    "subtitle": "Filter alternatives by price tier or brand, then compare grades.",
+    "priceLabel": "Price tier",
+    "priceAll": "All",
+    "brandPlaceholder": "Brand contains…",
+    "apply": "Apply filters",
+    "loading": "Loading picks…",
+    "empty": "No matches — try clearing filters."
+  },
+  "profile": {
+    "healthProfile": "Health profile",
+    "signOut": "Sign out",
+    "save": "Save"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signUp": "Create account"
+  }
+}

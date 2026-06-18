@@ -1,0 +1,110 @@
+{
+  "expo": {
+    "name": "TruWell AI",
+    "slug": "truwell-ai",
+    "version": "3.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": [
+      "truwell",
+      "truwellai"
+    ],
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/truwell-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#020A14",
+      "imageWidth": 200
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.truwell.ai",
+      "usesAppleSignIn": true,
+      "buildNumber": "1",
+      "associatedDomains": [
+        "applinks:truwellai.xyz"
+      ]
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#020A14"
+      },
+      "package": "com.truwell.ai",
+      "versionCode": 1,
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "@react-native-google-signin/google-signin",
+      "expo-dev-client",
+      "expo-apple-authentication",
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.1",
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#020A14",
+          "image": "./assets/images/truwell-logo.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "TruWell AI uses your camera to scan products and ingredients."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#020A14"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TruWell AI accesses your photo library to upload product images."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "TruWell AI uses your location to find nearby hospitals in emergencies."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "TruWell AI uses your microphone so you can speak to the health assistant."
+        }
+      ],
+      "react-native-adapty"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c0c8501b-e3e7-4e96-8012-24459ea247c8"
+      }
+    },
+    "owner": "truwellai"
+  }
+}

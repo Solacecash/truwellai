@@ -1,0 +1,74 @@
+/**
+ * Windows hardlink workaround — Gradle init script companion.
+ * NDK/CMake emits libc++_shared.so as hard links; Gradle 8.13 cannot snapshot them.
+ */
+
+def truwellMobileRoot = {
+  gradle.rootProject?.projectDir?.parentFile ?:
+    gradle.startParameter.currentDir?.parentFile
+}
+
+def truwellRunExpand = { String... extraArgs ->
+  def mobileRoot = truwellMobileRoot()
+  if (mobileRoot == null) return
+  def expandScript = new File(mobileRoot, 'scripts/expand-android-hardlinks.cjs')
+  if (!expandScript.exists()) return
+
+  def cmd = ['node', expandScript.absolutePath] + (extraArgs as List)
+  def pb = new ProcessBuilder(cmd)
+  pb.directory(mobileRoot)
+  pb.inheritIO()
+  def proc = pb.start()
+  proc.waitFor()
+}
+
+def truwellIsMergeNativeTask = { String name ->
+  def n = name.toLowerCase()
+  n.contains('mergenativelibs') ||
+  n.contains('mergereleasenativelibs') ||
+  n.contains('mergedebugnativelibs') ||
+  n.contains('mergenative')
+}
+
+def truwellIsNativeBuildTask = { String name ->
+  def n = name.toLowerCase()
+  n.contains('cmake') || n.contains('prefab') ||
+  n.contains('externalnative') || n.contains('configurecmake') ||
+  n.contains('buildcmake') || n.contains('linknative')
+}
+
+def truwellWireTask = { task ->
+  if (task.ext.has('truwellHardlinkWired')) return
+  def name = task.name
+  if (!truwellIsMergeNativeTask(name) && !truwellIsNativeBuildTask(name)) return
+
+  task.ext.truwellHardlinkWired = true
+  task.doNotTrackState('TruWell Windows hardlink snapshot workaround')
+
+  if (truwellIsMergeNativeTask(name)) {
+    task.doFirst { truwellRunExpand() }
+  } else {
+    def moduleDir = task.project.projectDir.absolutePath
+    task.doFirst { truwellRunExpand(moduleDir) }
+    task.doLast { truwellRunExpand(moduleDir) }
+  }
+}
+
+gradle.beforeProject { project ->
+  project.tasks.configureEach { task -> truwellWireTask(task) }
+  project.tasks.whenTaskAdded { task -> truwellWireTask(task) }
+  project.afterEvaluate {
+    project.tasks.configureEach { task -> truwellWireTask(task) }
+  }
+}
+
+gradle.taskGraph.whenReady { graph ->
+  graph.allTasks.each { task -> truwellWireTask(task) }
+  truwellRunExpand()
+}
+
+gradle.taskGraph.beforeTask { task ->
+  if (truwellIsMergeNativeTask(task.name)) {
+    truwellRunExpand()
+  }
+}

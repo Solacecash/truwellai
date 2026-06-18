@@ -1,0 +1,14 @@
+/**
+ * Gradle init script — registers beforeProject hook before any module configures.
+ */
+def initScriptPath = gradle.startParameter.initScripts.find {
+  it.toString().replace('\\', '/').contains('gradle-windows-hardlink-fix.gradle')
+}
+def applyScript = initScriptPath != null
+  ? new File(new File(initScriptPath.toString()).parentFile,
+      'gradle-windows-hardlink-apply.gradle')
+  : null
+
+if (applyScript != null && applyScript.exists()) {
+  apply from: applyScript
+}
