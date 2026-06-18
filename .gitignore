@@ -56,3 +56,5 @@ releases/
 *.apk
 *.aab
 *.keystore
+
+supabase/.temp/
