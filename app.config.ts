@@ -1,4 +1,5 @@
 import type { ExpoConfig, ConfigContext } from 'expo/config';
+import { withAndroidManifest, type ConfigPlugin } from '@expo/config-plugins';
 
 /**
  * AUTHORITATIVE EXPO CONFIG FOR EAS AND LOCAL BUILDS.
@@ -11,6 +12,17 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
 const { allowLocalSupabaseFromEnv, sanitizeSupabaseProjectUrl } = require('./lib/supabasePublicUrl.forAppConfig.cjs');
 
 const rawSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+
+const withAdaptyManifestFix: ConfigPlugin = (config) => {
+  return withAndroidManifest(config, (config) => {
+    const application = config.modResults.manifest.application?.[0];
+    if (application) {
+      application['$']['tools:replace'] =
+        'android:dataExtractionRules,android:fullBackupContent';
+    }
+    return config;
+  });
+}
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -135,7 +147,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'react-native-adapty',
-  ],
+    withAdaptyManifestFix,
+  ] as ExpoConfig['plugins'],
   experiments: {
     typedRoutes: true,
   },
