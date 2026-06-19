@@ -401,7 +401,7 @@ function HomeScreen() {
             }
           />
           <QuickActionButton
-            label="AI Chat"
+            label="Ask Sofia"
             color={theme.purple}
             onPress={() => router.push('/assistant')}
             icon={

@@ -15,6 +15,7 @@ export interface PlanFeature {
 export interface SubscriptionPlan {
   id: PlanId;
   name: string;
+  subheadline?: string;
   displayOrder: number;
   topBannerLabel?: string;
   topBannerRight?: string;
@@ -32,6 +33,8 @@ export interface SubscriptionPlan {
   ctaLabel: string;
   ctaColor: 'gold' | 'teal' | 'green' | 'blue' | 'none';
   ctaSubtext?: string;
+  rationaleTitle?: string;
+  rationaleBody?: string;
   fomoText?: string;
   fomoColor: 'red' | 'teal' | 'green' | 'none';
   accentColor: string;
@@ -54,9 +57,9 @@ export interface SubscriptionPlan {
 export const PLANS: SubscriptionPlan[] = [
   {
     id: 'lifetime',
-    name: 'Lifetime Founder',
+    name: 'Become a Founding Guardian',
     displayOrder: 1,
-    topBannerLabel: '⚡ LIFETIME FOUNDER',
+    topBannerLabel: '⚡ FOUNDING GUARDIAN',
     topBannerRight: 'PRICE RISES TO $249 AT 500',
     floatingBadge: undefined,
     floatingBadgeColor: 'none',
@@ -69,9 +72,11 @@ export const PLANS: SubscriptionPlan[] = [
     savingsBadgeText: 'Save $100 forever · 40% off',
     savingsBadgeColor: 'gold',
     equivalentText: '= $0.83/mo over 15 years vs $6.99/mo forever',
-    ctaLabel: 'Claim Founder Status · Save $100',
+    ctaLabel: 'Secure Lifetime Access',
     ctaColor: 'gold',
-    ctaSubtext: 'One-time payment · no subscription ever',
+    ctaSubtext: 'One payment. Lifetime access. No subscription ever.',
+    rationaleTitle: 'Why Members Choose Founder',
+    rationaleBody: 'Never pay monthly fees again. Lock in lifetime access before Founder memberships close.',
     fomoText: 'Only [N] founder slots left · price rises to $249',
     fomoColor: 'red',
     accentColor: '#C9A84C',
@@ -105,6 +110,7 @@ export const PLANS: SubscriptionPlan[] = [
   {
     id: 'family',
     name: 'Family Guardian',
+    subheadline: 'Protect everyone who matters most. Up to 5 family members under one membership.',
     displayOrder: 2,
     topBannerLabel: undefined,
     topBannerRight: undefined,
@@ -153,7 +159,7 @@ export const PLANS: SubscriptionPlan[] = [
 
   {
     id: 'pro_yearly',
-    name: 'TruWell Pro',
+    name: 'Personal Guardian',
     displayOrder: 3,
     topBannerLabel: undefined,
     topBannerRight: undefined,
@@ -201,7 +207,7 @@ export const PLANS: SubscriptionPlan[] = [
 
   {
     id: 'pro_monthly',
-    name: 'TruWell Pro',
+    name: 'Personal Guardian',
     displayOrder: 4,
     topBannerLabel: undefined,
     topBannerRight: undefined,

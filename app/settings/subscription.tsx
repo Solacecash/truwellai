@@ -71,17 +71,16 @@ function storeProductForPlan(planId: PlanId): string | null {
 const ROTATING_MESSAGES = [
   '47 databases. Your health comes first. Zero compromises.',
   'The EU banned 1,400 ingredients. The USA banned 11.',
-  'Your shampoo may be illegal in France.',
-  '126 chemicals absorbed before breakfast.',
-  '2,841 families protected this month.',
+  'Some ingredients banned abroad are still on shelves here.',
+  'Know what is really in what you use, before you use it.',
+  'Real protection for the people who depend on you.',
 ];
 
 const TICKER_ITEMS = [
-  '2,841 families protected',
-  '47 databases',
-  '1,247 professionals',
-  '127 of 500 founder slots',
-  '50,000+ guardians',
+  'Trusted by families who want real answers',
+  'Checked against global safety databases',
+  'Built for the people you protect most',
+  'Private, secure, and always yours',
 ];
 
 const GOLD = '#C9A84C';
@@ -348,6 +347,26 @@ function LifetimeCard({
           <FeatureRow key={f.text} feature={f} accentColor={GOLD} />
         ))}
 
+        {plan.rationaleTitle && plan.rationaleBody && (
+          <View
+            style={{
+              marginTop: 14,
+              padding: 12,
+              borderRadius: 12,
+              backgroundColor: 'rgba(201,168,76,0.06)',
+              borderWidth: 1,
+              borderColor: 'rgba(201,168,76,0.18)',
+            }}
+          >
+            <Text style={{ color: GOLD, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>
+              {plan.rationaleTitle}
+            </Text>
+            <Text style={{ color: 'rgba(240,244,255,0.65)', fontSize: 12, lineHeight: 17 }}>
+              {plan.rationaleBody}
+            </Text>
+          </View>
+        )}
+
         {/* CTA */}
         <View style={{ marginTop: 14 }}>
           <ShimmerButton
@@ -431,6 +450,12 @@ function FamilyCard({
             <Text style={[styles.peopleChipText, { color: TEAL }]}>5 People</Text>
           </View>
         </View>
+
+        {plan.subheadline && (
+          <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 12, marginBottom: 8, lineHeight: 17 }}>
+            {plan.subheadline}
+          </Text>
+        )}
 
         {/* Price */}
         <Text style={styles.strikethrough}>{plan.strikethroughPrice}</Text>
@@ -516,6 +541,9 @@ function ProYearlyCard({
       </View>
 
       <View style={{ padding: 14, paddingTop: 10 }}>
+        <Text style={{ color: GREEN, fontSize: 13, fontWeight: '700', marginBottom: 6 }}>
+          {plan.name}
+        </Text>
         {/* Price */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
           <Text style={[styles.priceMain, { color: GREEN, fontSize: 36 }]}>{plan.priceDisplay}</Text>
@@ -598,8 +626,11 @@ function ProMonthlyCard({
   return (
     <Animated.View style={[cardStyle, styles.proMonthlyCard]}>
       <View style={{ padding: 14 }}>
+        <Text style={{ color: BLUE, fontSize: 13, fontWeight: '700', marginBottom: 4 }}>
+          {plan.name}
+        </Text>
         <Text style={styles.premonthlyNote}>
-          {hideYearlyNudge ? 'TruWell Pro monthly membership' : 'Or start monthly - no commitment'}
+          {hideYearlyNudge ? 'Monthly membership' : 'Or start monthly - no commitment'}
         </Text>
 
         {/* Price */}
@@ -644,14 +675,14 @@ function FreeCard({ onContinue }: { onContinue: () => void }) {
     <View style={styles.freeCard}>
       <View style={styles.freeCardRow}>
         <View>
-          <Text style={styles.freePlanTitle}>Free Plan</Text>
-          <Text style={styles.freePlanSub}>10 scans · 3 report · 20 AI questions</Text>
+          <Text style={styles.freePlanTitle}>Explore Guardian</Text>
+          <Text style={styles.freePlanSub}>Get started at no cost. Upgrade anytime for premium features.</Text>
         </View>
         <TouchableOpacity onPress={onContinue} hitSlop={8}>
           <Text style={styles.freeContinueText}>Continue →</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.freePlanNote}>Missing full protection. Upgrade anytime.</Text>
+      <Text style={styles.freePlanNote}>10 scans · 3 reports · 20 AI questions included.</Text>
     </View>
   );
 }
@@ -662,10 +693,12 @@ function FreeCard({ onContinue }: { onContinue: () => void }) {
 
 function TrustBadges() {
   const items = [
-    { icon: '🔒', title: 'Store secured', sub: 'App Store · Google Play' },
-    { icon: '✓', title: 'Cancel anytime', sub: 'No questions' },
-    { icon: '+', title: 'Instant access', sub: 'Activated now' },
-    { icon: '★', title: '7-day refund', sub: 'If not satisfied' },
+    { icon: '+', title: 'Easy to use', sub: 'Set up in minutes' },
+    { icon: '👨‍👩‍👧‍👦', title: 'Built for families', sub: 'Up to 5 profiles' },
+    { icon: '★', title: 'Personalised', sub: 'For every member' },
+    { icon: '🔒', title: 'Private & secure', sub: 'App Store · Google Play' },
+    { icon: '✓', title: 'Cancel anytime', sub: 'No questions asked' },
+    { icon: '⚡', title: 'Instant access', sub: 'Active right after purchase' },
   ];
 
   return (
@@ -690,8 +723,10 @@ function TrustBadges() {
 // Social proof ticker
 // ---------------------------------------------------------------------------
 
-function SocialProofTicker() {
-  const allItems = [...TICKER_ITEMS, ...TICKER_ITEMS];
+function SocialProofTicker({ founderSlots }: { founderSlots: number }) {
+  const claimedCount = 500 - founderSlots;
+  const founderSlotItem = `${claimedCount} of 500 founder slots claimed`;
+  const allItems = [...TICKER_ITEMS, founderSlotItem, ...TICKER_ITEMS, founderSlotItem];
   const translateX = useSharedValue(0);
   const [totalWidth, setTotalWidth] = useState(0);
 
@@ -947,6 +982,7 @@ export function SubscriptionScreenContent({
       <PurchaseSuccessView
         plan={plan}
         onContinue={finishAfterPurchase}
+        founderSlots={founderSlots}
       />
     );
   }
@@ -968,20 +1004,38 @@ export function SubscriptionScreenContent({
               </>
             ) : (
               <>
-                Upgrade Your{' '}
-                <Text style={{ color: GOLD }}>Guardian</Text>
+                Protect What{' '}
+                <Text style={{ color: GOLD }}>Matters Most</Text>
               </>
             )}
           </Text>
+          {!isOnboarding && (
+            <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 13, textAlign: 'center', marginTop: 4, marginBottom: 2 }}>
+              Personalised wellness support for you and the people you love.
+            </Text>
+          )}
           <Animated.Text style={[styles.rotatingMsg, rotStyle]}>
             {isOnboarding
               ? 'Founder Lifetime, Family Guardian, and monthly Pro unlock unlimited scans, reports, and AI coaching.'
               : ROTATING_MESSAGES[msgIdx]}
           </Animated.Text>
+          {!isOnboarding && (
+            <View style={{ flexDirection: 'row', gap: 14, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 12, fontWeight: '600' }}>
+                ⭐ Trusted by thousands
+              </Text>
+              <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 12, fontWeight: '600' }}>
+                🔒 Private & Secure
+              </Text>
+              <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 12, fontWeight: '600' }}>
+                👨‍👩‍👧‍👦 Built for families
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Social proof ticker */}
-        <SocialProofTicker />
+        <SocialProofTicker founderSlots={founderSlots} />
 
         {/* Urgency bar */}
         <UrgencyBar founderSlots={founderSlots} />
@@ -1107,9 +1161,11 @@ export function SubscriptionScreenContent({
 function PurchaseSuccessView({
   plan,
   onContinue,
+  founderSlots,
 }: {
   plan: SubscriptionPlan;
   onContinue: () => void;
+  founderSlots: number;
 }) {
   const contentScale = useSharedValue(0.8);
   const contentOpacity = useSharedValue(0);
@@ -1124,9 +1180,10 @@ function PurchaseSuccessView({
     opacity: contentOpacity.value,
   }));
 
+  const claimedNow = 500 - founderSlots;
   const bodyText: Record<string, string> = {
     lifetime:
-      'You are now one of the 127 Founders. Your protection is permanent. Every scan, every report, every future feature - yours forever.',
+      `You are now Founder #${claimedNow}. Your protection is permanent. Every scan, every report, every future feature - yours forever.`,
     family:
       'Five profiles unlocked. Unlimited scans for your household. What hides in the label no longer hides from you.',
     pro_yearly: 'Unlimited protection activated. Scan anything. Know everything.',
@@ -1138,9 +1195,9 @@ function PurchaseSuccessView({
       <Animated.View style={[{ alignItems: 'center', paddingHorizontal: 28, gap: 16 }, contentStyle]}>
         <TruWellShield size={80} showCheckmark animated={false} />
 
-        <Text style={styles.successHeadline}>
-          You are now a {plan.name} Guardian
-        </Text>
+          <Text style={styles.successHeadline}>
+            You are now {plan.name}
+          </Text>
         <Text style={styles.successBody}>
           {bodyText[plan.id] ?? 'Unlimited protection activated. Scan anything. Know everything.'}
         </Text>
