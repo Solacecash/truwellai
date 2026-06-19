@@ -124,7 +124,29 @@ function syncProjectMirror() {
   const nmDir = path.join(dest, 'node_modules');
   if (fs.existsSync(nmDir)) {
     console.log('[TruWell] Removing mirrored node_modules for clean npm ci…');
-    fs.rmSync(nmDir, { recursive: true, force: true });
+    try {
+      fs.rmSync(nmDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 1000 });
+    } catch (e) {
+      if (process.platform === 'win32') {
+        console.warn('[TruWell] fs.rmSync failed — trying rmdir /s /q…');
+        try {
+          execSync(`cmd /c rmdir /s /q "${nmDir}"`, { stdio: 'inherit' });
+        } catch {
+          const staleDir = `${nmDir}.stale-${Date.now()}`;
+          console.warn(`[TruWell] rmdir failed — renaming to ${path.basename(staleDir)}…`);
+          try {
+            fs.renameSync(nmDir, staleDir);
+          } catch (renameErr) {
+            console.error(
+              'Could not remove mirrored node_modules. Stop Gradle in C:\\tw-build\\android (gradlew --stop) and retry.',
+            );
+            throw renameErr;
+          }
+        }
+      } else {
+        throw e;
+      }
+    }
   }
   console.log('\n[TruWell] Installing dependencies on local disk (npm ci)…\n');
   run('npm ci', { cwd: dest });
@@ -230,6 +252,82 @@ if (System.getProperty('os.name').toLowerCase().contains('windows')) {
   console.log('Patched android/build.gradle with Windows hardlink fix (v3).');
 }
 
+const NINJA_MIN_VERSION = '1.12.0';
+const NINJA_RELEASE = 'v1.12.1';
+
+/** @returns {string | null} Directory containing ninja.exe to prepend to PATH */
+function ensureModernNinja() {
+  if (process.platform !== 'win32') return null;
+
+  const sdkNinja = path.join(defaultSdkDir(), 'cmake', '3.22.1', 'bin', 'ninja.exe');
+  let sdkVersion = '';
+  if (fs.existsSync(sdkNinja)) {
+    try {
+      sdkVersion = execSync(`"${sdkNinja}" --version`, { encoding: 'utf8' }).trim();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (sdkVersion && compareSemver(sdkVersion, NINJA_MIN_VERSION) >= 0) {
+    console.log(`Ninja ${sdkVersion} OK (>= ${NINJA_MIN_VERSION}).`);
+    return path.dirname(sdkNinja);
+  }
+
+  const cacheRoot = path.join(
+    process.env.LOCALAPPDATA || 'C:\\Temp',
+    'truwell-ndk-tools',
+    'ninja-1.12.1',
+  );
+  const cachedNinja = path.join(cacheRoot, 'ninja.exe');
+  if (!fs.existsSync(cachedNinja)) {
+    fs.mkdirSync(cacheRoot, { recursive: true });
+    const zipPath = path.join(cacheRoot, 'ninja-win.zip');
+    const url = `https://github.com/ninja-build/ninja/releases/download/${NINJA_RELEASE}/ninja-win.zip`;
+    console.log(
+      `Ninja ${sdkVersion || 'missing'} is too old for Windows RN builds — downloading ${NINJA_RELEASE}…`,
+    );
+    run(`curl.exe -fL "${url}" -o "${zipPath}"`, { cwd: cacheRoot });
+    if (!fs.existsSync(zipPath)) {
+      console.error('Ninja download failed — zip missing at', zipPath);
+      process.exit(1);
+    }
+    run(
+      `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${cacheRoot.replace(/'/g, "''")}' -Force"`,
+      { cwd: cacheRoot },
+    );
+    if (!fs.existsSync(cachedNinja)) {
+      console.error('Failed to install modern Ninja to', cacheRoot);
+      process.exit(1);
+    }
+  }
+
+  const cachedVersion = execSync(`"${cachedNinja}" --version`, { encoding: 'utf8' }).trim();
+  console.log(`Using cached Ninja ${cachedVersion} from ${cacheRoot}`);
+
+  if (fs.existsSync(sdkNinja) && compareSemver(cachedVersion, NINJA_MIN_VERSION) >= 0) {
+    try {
+      fs.copyFileSync(cachedNinja, sdkNinja);
+      console.log(`Patched Android SDK Ninja at ${sdkNinja}`);
+    } catch (e) {
+      console.warn('Could not patch SDK Ninja (Gradle may still use PATH):', e.message);
+    }
+  }
+
+  return cacheRoot;
+}
+
+/** @param {string} a @param {string} b @returns {number} */
+function compareSemver(a, b) {
+  const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = b.split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
 function ensureGradleReleaseFlags() {
   const propsPath = path.join(ctx.androidDir, 'gradle.properties');
   if (!fs.existsSync(propsPath)) return;
@@ -238,6 +336,7 @@ function ensureGradleReleaseFlags() {
     ['org.gradle.caching', 'false'],
     ['org.gradle.configuration-cache', 'false'],
     ['org.gradle.parallel', 'false'],
+    ['org.gradle.workers.max', '1'],
     ['org.gradle.vfs.watch', 'false'],
   ];
   for (const [key, value] of additions) {
@@ -407,6 +506,13 @@ function main() {
   const archFlag = process.env.TRUWELL_APK_ARCHITECTURES || 'arm64-v8a';
   const artifact = process.env.TRUWELL_ANDROID_ARTIFACT === 'aab' ? 'aab' : 'apk';
   const gradleTask = artifact === 'aab' ? 'bundleRelease' : 'assembleRelease';
+  const ninjaDir = ensureModernNinja();
+  const gradlePath =
+    ninjaDir && process.env.PATH
+      ? `${ninjaDir};${process.env.PATH}`
+      : ninjaDir
+        ? ninjaDir
+        : process.env.PATH;
   const result = spawnSync(
     gradlew,
     [...initArgs, gradleTask, '--no-daemon', `-PreactNativeArchitectures=${archFlag}`],
@@ -414,7 +520,12 @@ function main() {
       cwd: ctx.androidDir,
       stdio: 'inherit',
       shell: true,
-      env: { ...process.env, NODE_ENV: 'production' },
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        CMAKE_BUILD_PARALLEL_LEVEL: process.env.CMAKE_BUILD_PARALLEL_LEVEL || '1',
+        ...(gradlePath ? { PATH: gradlePath } : {}),
+      },
     },
   );
   if (result.status !== 0) {

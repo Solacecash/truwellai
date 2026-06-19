@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import Anthropic from 'npm:@anthropic-ai/sdk@0.39.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { analyseWithGeminiText } from '../_shared/geminiAnalysis.ts';
 
 const ALLOWED_ORIGINS = [
   'https://truwellai.xyz',
@@ -812,24 +813,49 @@ serve(async (req) => {
       });
     }
 
-    // ── Diet personalization (JSON meal plan) ────────────────────────────
+    // ── Diet personalization (JSON meal plan) ──────────────────────────────
+    // Gemini Flash is primary here for speed and cost; Claude remains
+    // the fallback model if Gemini fails or is unavailable, never removed.
     if (body.diet_personalization && body.personalization && typeof body.personalization === 'object') {
       const userJson = JSON.stringify(body.personalization);
-      const dietResponse = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        system: DIET_PERSONALIZATION_SYSTEM,
-        messages: [
-          {
-            role: 'user',
-            content: `Personalization request (JSON). Build the plan from this data:\n${userJson}`,
-          },
-        ],
-      });
-      const dietText = dietResponse.content
-        .filter((b) => b.type === 'text')
-        .map((b) => (b as { type: 'text'; text: string }).text)
-        .join('');
+      const dietPrompt = `Personalization request (JSON). Build the plan from this data:\n${userJson}`;
+      const geminiKey = Deno.env.get('GEMINI_API_KEY');
+
+      let dietText = '';
+      let usedFallback = false;
+
+      if (geminiKey) {
+        try {
+          dietText = await analyseWithGeminiText({
+            apiKey: geminiKey,
+            systemPrompt: DIET_PERSONALIZATION_SYSTEM,
+            userPrompt: dietPrompt,
+            maxOutputTokens: 4096,
+          });
+        } catch {
+          usedFallback = true;
+        }
+      } else {
+        usedFallback = true;
+      }
+
+      if (usedFallback || !dietText) {
+        const dietResponse = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+          system: DIET_PERSONALIZATION_SYSTEM,
+          messages: [
+            {
+              role: 'user',
+              content: dietPrompt,
+            },
+          ],
+        });
+        dietText = dietResponse.content
+          .filter((b) => b.type === 'text')
+          .map((b) => (b as { type: 'text'; text: string }).text)
+          .join('');
+      }
       try {
         const { meal_plan, grocery_list } = parseDietPlanResponse(dietText);
 

@@ -504,6 +504,7 @@ function RootNav() {
         name="food-history/index"
         options={{ headerShown: false }}
       />
+      <Stack.Screen name="family/index"              options={{ headerShown: false }} />
       <Stack.Screen name="ingredient/[name]"         options={{ headerShown: false }} />
       <Stack.Screen name="ingredient/search"         options={{ headerShown: false }} />
       <Stack.Screen name="review/new"                options={{ headerShown: false }} />

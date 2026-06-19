@@ -128,6 +128,80 @@ const PATTERNS: { key: BreathingPattern; label: string }[] = [
   { key: 'wim-hof', label: 'Wim Hof' },
 ];
 
+interface GenericMeal {
+  id: string;
+  category: 'breakfast' | 'lunch' | 'dinner';
+  name: string;
+  calories: number;
+}
+
+const GENERIC_BREAKFASTS: GenericMeal[] = [
+  { id: 'b-1', category: 'breakfast', name: 'Greek yogurt with berries and honey', calories: 320 },
+  { id: 'b-2', category: 'breakfast', name: 'Oatmeal with banana and peanut butter', calories: 380 },
+  { id: 'b-3', category: 'breakfast', name: 'Scrambled eggs with whole grain toast', calories: 340 },
+  { id: 'b-4', category: 'breakfast', name: 'Smoothie with spinach, banana, and almond milk', calories: 300 },
+  { id: 'b-5', category: 'breakfast', name: 'Whole grain pancakes with fresh fruit', calories: 360 },
+  { id: 'b-6', category: 'breakfast', name: 'Cottage cheese with pineapple and granola', calories: 310 },
+  { id: 'b-7', category: 'breakfast', name: 'Avocado toast with a poached egg', calories: 350 },
+  { id: 'b-8', category: 'breakfast', name: 'Overnight oats with chia seeds and apple', calories: 330 },
+  { id: 'b-9', category: 'breakfast', name: 'Veggie omelette with side of fruit', calories: 345 },
+  { id: 'b-10', category: 'breakfast', name: 'Whole grain toast with almond butter and banana', calories: 355 },
+];
+
+const GENERIC_LUNCHES: GenericMeal[] = [
+  { id: 'l-1', category: 'lunch', name: 'Grilled chicken salad with olive oil dressing', calories: 480 },
+  { id: 'l-2', category: 'lunch', name: 'Turkey and avocado wrap with side salad', calories: 520 },
+  { id: 'l-3', category: 'lunch', name: 'Lentil soup with a side of whole grain bread', calories: 450 },
+  { id: 'l-4', category: 'lunch', name: 'Quinoa bowl with chickpeas and roasted vegetables', calories: 490 },
+  { id: 'l-5', category: 'lunch', name: 'Tuna salad sandwich on whole wheat', calories: 460 },
+  { id: 'l-6', category: 'lunch', name: 'Vegetable stir-fry with shrimp and noodles', calories: 500 },
+  { id: 'l-7', category: 'lunch', name: 'Chicken and vegetable soup with crackers', calories: 440 },
+  { id: 'l-8', category: 'lunch', name: 'Falafel wrap with hummus and side salad', calories: 510 },
+  { id: 'l-9', category: 'lunch', name: 'Grilled shrimp tacos with slaw', calories: 470 },
+  { id: 'l-10', category: 'lunch', name: 'Chickpea and spinach curry with rice', calories: 530 },
+];
+
+const GENERIC_DINNERS: GenericMeal[] = [
+  { id: 'd-1', category: 'dinner', name: 'Baked salmon with steamed vegetables', calories: 540 },
+  { id: 'd-2', category: 'dinner', name: 'Stir-fried tofu and vegetables with brown rice', calories: 510 },
+  { id: 'd-3', category: 'dinner', name: 'Grilled lean beef with sweet potato and greens', calories: 580 },
+  { id: 'd-4', category: 'dinner', name: 'Baked cod with asparagus and brown rice', calories: 500 },
+  { id: 'd-5', category: 'dinner', name: 'Roast chicken with mixed vegetables', calories: 550 },
+  { id: 'd-6', category: 'dinner', name: 'Grilled pork tenderloin with roasted carrots', calories: 530 },
+  { id: 'd-7', category: 'dinner', name: 'Baked tilapia with quinoa and green beans', calories: 490 },
+  { id: 'd-8', category: 'dinner', name: 'Turkey meatballs with zucchini noodles', calories: 520 },
+  { id: 'd-9', category: 'dinner', name: 'Grilled vegetable and halloumi skewers with couscous', calories: 505 },
+  { id: 'd-10', category: 'dinner', name: 'Beef and vegetable stir-fry with brown rice', calories: 560 },
+];
+
+const GENERIC_POOLS: Record<'breakfast' | 'lunch' | 'dinner', GenericMeal[]> = {
+  breakfast: GENERIC_BREAKFASTS,
+  lunch: GENERIC_LUNCHES,
+  dinner: GENERIC_DINNERS,
+};
+
+function dateSeed(dateIso: string): number {
+  const d = new Date(dateIso + 'T00:00:00');
+  return Math.abs(Math.floor(d.getTime() / 86400000));
+}
+
+/**
+ * Picks one meal per slot deterministically for a given date,
+ * so the same day always shows the same default set on
+ * revisit, while still allowing each slot to rotate
+ * independently when the user taps it (offset is tracked
+ * separately per slot in component state).
+ */
+function getGenericMealForSlot(
+  dateIso: string,
+  category: 'breakfast' | 'lunch' | 'dinner',
+  rotationOffset: number
+): GenericMeal {
+  const pool = GENERIC_POOLS[category];
+  const index = (dateSeed(dateIso) + rotationOffset) % pool.length;
+  return pool[index];
+}
+
 // ---------------------------------------------------------------------------
 // GoalCard — title + value text + 8-segment SegmentedIndicator
 // ---------------------------------------------------------------------------
@@ -382,6 +456,37 @@ function WellnessScreen() {
 
   // ── Log meal (Supabase plan) ─────────────────────────────────────────────
   const [localLogged, setLocalLogged] = useState<Set<string>>(new Set());
+
+  const [genericLogged, setGenericLogged] = useState<Set<string>>(new Set());
+  const [genericRotation, setGenericRotation] = useState<Record<'breakfast' | 'lunch' | 'dinner', number>>({
+    breakfast: 0,
+    lunch: 0,
+    dinner: 0,
+  });
+  const rotateGenericMeal = (category: 'breakfast' | 'lunch' | 'dinner') => {
+    hapticSelection();
+    setGenericRotation((prev) => ({ ...prev, [category]: prev[category] + 1 }));
+  };
+  const logGenericMeal = useMutation({
+    mutationFn: async ({ calories }: { mealId: string; calories: number }) => {
+      if (!userId) return;
+      await supabase
+        .from('user_wellness')
+        .update({ calories_consumed: (wellness?.calories_consumed ?? 0) + calories })
+        .eq('user_id', userId);
+      await supabase.rpc('calculate_daily_score_contribution', {
+        p_user_id: userId,
+      });
+    },
+    onMutate: ({ mealId }) => setGenericLogged((s) => new Set(s).add(mealId)),
+    onSuccess: () => {
+      addXp(15);
+      void queryClient.invalidateQueries({ queryKey: ['user-wellness', userId] });
+      void queryClient.invalidateQueries({ queryKey: ['rewards', userId] });
+    },
+    onError: (_, { mealId }) =>
+      setGenericLogged((s) => { const n = new Set(s); n.delete(mealId); return n; }),
+  });
 
   const logMeal = useMutation({
     mutationFn: async ({ mealId, calories }: { mealId: string; calories: number }) => {
@@ -970,13 +1075,59 @@ function WellnessScreen() {
           {mealPlanQ.isLoading ? (
             <SkeletonLoader width="100%" height={90} borderRadius={16} />
           ) : !mealPlanQ.data ? (
-            <View style={[styles.card, { backgroundColor: theme.bg1, borderColor: theme.border, padding: 20, alignItems: 'center' }]}>
-              <Text style={{ color: theme.text2, fontSize: 14, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}>
-                No meal plan for this day yet
+            <View style={styles.mealsBlock}>
+              <Text style={{ color: theme.text1, fontSize: 13, fontWeight: '800', marginBottom: 2 }}>
+                {dayLabel(selectedDate)}
               </Text>
-              <Text style={{ color: theme.text3, fontSize: 12, textAlign: 'center' }}>
-                Generate a personalised AI meal plan to see your meals here.
+              <Text style={{ color: theme.text3, fontSize: 11, fontWeight: '600', marginBottom: 8 }}>
+                Suggested for today. Tap a meal to swap it, or personalise for a plan built around you.
               </Text>
+              {(['breakfast', 'lunch', 'dinner'] as const).map((category) => {
+                const meal = getGenericMealForSlot(selectedDate, category, genericRotation[category]);
+                const logged = genericLogged.has(meal.id);
+                return (
+                  <View key={category} style={styles.mealWrap}>
+                    <View style={[styles.supabaseMealRow, { borderBottomColor: theme.border }]}>
+                      <TouchableOpacity
+                        style={{ flex: 1 }}
+                        activeOpacity={0.7}
+                        onPress={() => rotateGenericMeal(category)}
+                      >
+                        <Text style={[styles.mealCategory, { color: theme.text3 }]}>
+                          {category.charAt(0).toUpperCase() + category.slice(1)}
+                        </Text>
+                        <Text style={[styles.mealName, { color: theme.text1 }]}>{meal.name}</Text>
+                        <Text style={[styles.mealCal, { color: theme.amber }]}>{meal.calories} kcal</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (!logged) logGenericMeal.mutate({ mealId: meal.id, calories: meal.calories });
+                        }}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.checkBtn,
+                          {
+                            backgroundColor: logged ? `${theme.green}20` : `${theme.teal}14`,
+                            borderColor: logged ? theme.green : theme.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.checkBtnText, { color: logged ? theme.green : theme.text3 }]}>
+                          {logged ? 'Done' : 'Log'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => router.push('/diet-plan/personalise' as never)}
+                      activeOpacity={0.8}
+                      style={styles.askAiBtn}
+                    >
+                      <ChatBubbleIcon color={theme.teal} />
+                      <Text style={[styles.askAiText, { color: theme.teal }]}>Personalise this plan</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
             </View>
           ) : (
             <View style={styles.mealsBlock}>

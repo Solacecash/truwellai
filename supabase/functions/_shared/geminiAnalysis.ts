@@ -315,3 +315,60 @@ export async function analyseWithGeminiVision(
 
   return JSON.parse(text) as GeminiAnalysisResult;
 }
+
+/**
+ * Free-form text generation — same Gemini endpoint and
+ * request shape as analyseWithGeminiText, without JSON schema.
+ */
+export async function analyseWithGeminiTextGeneric(
+  params: {
+    systemPrompt: string;
+    userPrompt: string;
+    apiKey: string;
+    maxOutputTokens?: number;
+  }
+): Promise<string> {
+  const body = {
+    system_instruction: {
+      parts: [{ text: params.systemPrompt }],
+    },
+    contents: [{
+      role: 'user',
+      parts: [{ text: params.userPrompt }],
+    }],
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: params.maxOutputTokens ?? 4096,
+    },
+  };
+
+  const res = await fetch(
+    `${GEMINI_ENDPOINT}?key=${params.apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini request failed: ${res.status}: ${err}`);
+  }
+
+  const data = await res.json() as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ text?: string }>;
+      };
+    }>;
+  };
+
+  const text =
+    data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  if (typeof text !== 'string' || !text.trim()) {
+    throw new Error('Empty response from Gemini');
+  }
+  return text;
+}
