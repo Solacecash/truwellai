@@ -45,6 +45,16 @@ Deno.serve(async (req) => {
     const offStatus = offJson?.status;
     const p: OffProduct = offJson?.product ?? {};
 
+    if (offStatus !== 1) {
+      return new Response(
+        JSON.stringify({
+          needs_ocr: true,
+          message: 'This product is not in our databases. Scan the ingredient label to analyse it.',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const productName =
       p.product_name_en || p.product_name || `Product ${barcode}`;
     const brands = p.brands ?? '';
