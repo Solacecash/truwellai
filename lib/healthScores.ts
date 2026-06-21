@@ -1,5 +1,6 @@
 import type { Grade } from '@/components/ui/GradeCard';
 import type { GradedIngredient, ScanResultPayload } from '@/stores/scanStore';
+import { logFoodScan } from '@/lib/edge';
 import { supabase } from '@/lib/supabase';
 
 export type LiveHealthMetrics = {
@@ -328,6 +329,37 @@ export async function persistScanResult(
   } catch {
     /* legacy table may be absent */
   }
-
+  try {
+    // Also log to food_scan_history so barcode and ingredient
+    // scans appear in the same unified history screen that
+    // food/calorie scans already display correctly in.
+    const mappedScanType =
+      result.scanMethod === 'qr' || result.scanMethod === 'barcode'
+        ? 'barcode'
+        : result.scanMethod === 'ocr'
+        ? 'ocr'
+        : 'manual';
+    await logFoodScan(userId, {
+      scan_type: mappedScanType,
+      food_name: result.productName ?? null,
+      brand_name: null,
+      cuisine_region: null,
+      calories_kcal: null,
+      protein_g: null,
+      carbs_g: null,
+      fat_g: null,
+      fiber_g: null,
+      safety_grade: result.grade,
+      safety_score: score,
+      portion_description: null,
+      cooking_method: null,
+      meal_type: null,
+      image_url: null,
+      confidence_score: result.personalizedScore ?? null,
+      ai_estimated: true,
+    });
+  } catch {
+    /* non-fatal — unified history is best-effort */
+  }
   await refreshUserScoresFromAllScans(userId);
 }
