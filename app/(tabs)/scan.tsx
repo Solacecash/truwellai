@@ -15,7 +15,7 @@ import { useUserProfileStore } from '@/stores/userProfileStore';
 import { useTheme } from '@/theme/ThemeContext';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -113,6 +113,17 @@ function ScanScreen() {
   const { theme } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const cam = useRef<InstanceType<typeof CameraView>>(null);
+  const [focusKey, setFocusKey] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      // Force the CameraView to remount every time this screen
+      // regains focus, since the native camera session can be
+      // released or paused while navigated away (e.g. viewing a
+      // scan result) and does not always resume on its own.
+      setFocusKey((k) => k + 1);
+      return () => {};
+    }, [])
+  );
   const mode = useScanStore((s) => s.mode);
   const setMode = useScanStore((s) => s.setMode);
   const setLastResult = useScanStore((s) => s.setLastResult);
@@ -376,7 +387,7 @@ function ScanScreen() {
     <View style={[styles.root, { backgroundColor: theme.surface }]}>
       {/* Camera */}
       <CameraView
-        key={`camera-${mode}-${permission?.granted ? 'granted' : 'pending'}`}
+        key={`camera-${mode}-${permission?.granted ? 'granted' : 'pending'}-${focusKey}`}
         ref={cam}
         style={StyleSheet.absoluteFill}
         facing="back"
