@@ -5,7 +5,8 @@ import { ChatHistoryModal } from '@/components/assistant/ChatHistoryModal';
 import { TypingIndicator } from '@/components/assistant/TypingIndicator';
 import { VoicePaywallModal } from '@/components/assistant/VoicePaywallModal';
 import { VoicePickerModal, VOICE_PREVIEW_TEXT } from '@/components/assistant/VoicePickerModal';
-import { DrTruWellAvatar } from '@/components/ai/DrTruWellAvatar';
+import { SofiaAvatar } from '@/components/ai/SofiaAvatar';
+import { SofiaBadge } from '@/components/ai/SofiaBadge';
 import { BackHeader } from '@/components/ui/BackHeader';
 import EmergencyNotice from '@/components/legal/EmergencyNotice';
 import { LEGAL } from '@/lib/legalContent';
@@ -1076,49 +1077,19 @@ export default function AssistantScreen() {
         </TouchableOpacity>
 
         <View style={{ position: 'relative' }}>
-          <DrTruWellAvatar
+          <SofiaAvatar
             size="small"
             teal={theme.teal}
             gold={theme.gold}
-            greetOnMount={false}
-            speaking={false}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              bottom: -1,
-              right: -1,
-              width: 10,
-              height: 10,
-              borderRadius: 5,
-              backgroundColor: '#2ECC71',
-              borderWidth: 2,
-              borderColor: theme.bg0,
-            }}
+            purple={theme.purple}
+            thinking={showTyping}
+            speaking={!hasUserMessages && !showTyping}
           />
         </View>
 
         <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text1 }}>
-              Sofia
-            </Text>
-            <View
-              style={{
-                backgroundColor: `${theme.teal}22`,
-                borderWidth: 0.5,
-                borderColor: theme.teal,
-                borderRadius: 4,
-                paddingHorizontal: 5,
-                paddingVertical: 1,
-              }}
-            >
-              <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 0.6, color: theme.teal }}>
-                AI
-              </Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
+          <SofiaBadge variant="compact" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
             <Text
               style={{
                 fontSize: 11,
@@ -1133,7 +1104,7 @@ export default function AssistantScreen() {
                 ? 'Thinking...'
                 : !hasUserMessages
                   ? 'Speaking'
-                  : 'Product safety intelligence'}
+                  : 'Wellness intelligence'}
             </Text>
           </View>
         </View>

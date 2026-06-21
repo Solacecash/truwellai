@@ -286,6 +286,8 @@ function HomeScreen() {
     setRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['user-score', userId] }),
+      queryClient.invalidateQueries({ queryKey: ['scan-metrics-live', userId] }),
+      queryClient.invalidateQueries({ queryKey: ['user-wellness-carousel', userId] }),
       queryClient.invalidateQueries({ queryKey: ['user-alert', userId] }),
       queryClient.invalidateQueries({ queryKey: ['recent-scans', userId] }),
       queryClient.invalidateQueries({ queryKey: ['rewards', userId] }),
@@ -323,13 +325,9 @@ function HomeScreen() {
 
   // Derived values
   const name = profileQ.data?.display_name ?? 'there';
-  const score = userScoreQ.data?.overall_score ?? (profileQ.data?.reputation_score ?? 0);
-  const skinPct = userScoreQ.data?.skin_safety_pct ?? 0;
-  const purityPct = userScoreQ.data?.ingredient_purity_pct ?? 0;
-  const allergenPct = userScoreQ.data?.allergen_risk_pct ?? 0;
   const streak = rewardsQ.data?.streak_days ?? 0;
   const xpLevel = rewardsQ.data?.level ?? 1;
-  const scoreLoading = userScoreQ.isLoading || profileQ.isLoading;
+  const scoreLoading = userScoreQ.isLoading || profileQ.isLoading || rewardsQ.isLoading;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg0 }]} edges={['top']}>
@@ -367,11 +365,7 @@ function HomeScreen() {
         {/* ── Health score carousel ─────────────────────────── */}
         <HealthScoreCarousel
           scoreLoading={scoreLoading}
-          overallScore={score}
-          overallGrade={userScoreQ.data?.overall_grade}
-          skinPct={skinPct}
-          purityPct={purityPct}
-          allergenPct={allergenPct}
+          storedScores={userScoreQ.data ?? null}
           scoreDelta7d={userScoreQ.data?.score_delta_7d ?? 0}
           streakDays={streak}
           xpLevel={xpLevel}

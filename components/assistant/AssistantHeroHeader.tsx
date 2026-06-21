@@ -7,29 +7,10 @@ import Animated, {
   withTiming,
   withSequence,
 } from 'react-native-reanimated';
-import Svg, { Path } from 'react-native-svg';
 
-import { DrTruWellAvatar } from '@/components/ai/DrTruWellAvatar';
+import { SofiaAvatar } from '@/components/ai/SofiaAvatar';
+import { SofiaBadge } from '@/components/ai/SofiaBadge';
 import { useTheme } from '@/theme/ThemeContext';
-
-function VerifiedShield({ color }: { color: string }) {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M12 2L4 6v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V6l-8-4z"
-        fill={color}
-        fillOpacity={0.9}
-      />
-      <Path
-        d="M9 12l2 2 4-4"
-        stroke="#FFFFFF"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
 
 interface Props {
   disclaimerDismissed?: boolean;
@@ -91,13 +72,14 @@ export function AssistantHeroHeader({
       >
         <View style={styles.avatarSection}>
           <View style={styles.avatarRing}>
-            <DrTruWellAvatar
+            <SofiaAvatar
               size="small"
               teal={theme.teal}
               gold={theme.gold}
-              greetOnMount={false}
+              purple={theme.purple}
               thinking={thinking}
               speaking={speaking}
+              showStatusDot={false}
             />
             <View
               style={[
@@ -109,18 +91,7 @@ export function AssistantHeroHeader({
         </View>
 
         <View style={styles.centerSection}>
-          <View style={styles.nameRow}>
-            <Text style={[styles.drName, { color: theme.text1 }]}>Sofia</Text>
-            <View
-              style={[
-                styles.verifiedPill,
-                { backgroundColor: `${theme.gold}18`, borderColor: `${theme.gold}40` },
-              ]}
-            >
-              <VerifiedShield color={theme.gold} />
-              <Text style={[styles.verifiedTxt, { color: theme.gold }]}>AI</Text>
-            </View>
-          </View>
+          <SofiaBadge variant="compact" />
           <View style={styles.statusRow}>
             <Animated.View
               style={[
@@ -140,7 +111,7 @@ export function AssistantHeroHeader({
                 ? 'Thinking...'
                 : speaking
                   ? 'Speaking'
-                  : 'Health Intelligence · Available'}
+                  : 'Wellness intelligence · Available'}
             </Text>
           </View>
         </View>
@@ -191,30 +162,6 @@ const styles = StyleSheet.create({
   centerSection: {
     flex: 1,
     gap: 2,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  drName: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  verifiedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 100,
-    borderWidth: 1,
-  },
-  verifiedTxt: {
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.5,
   },
   statusRow: {
     flexDirection: 'row',

@@ -18,6 +18,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 // hold2: destination.
 
 function angleFor(phase: string, progress: number): number {
+  'worklet';
   // progress is 0..1 within the current phase
   const twoPi = Math.PI * 2;
   if (phase === 'inhale') {

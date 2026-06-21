@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -242,6 +243,303 @@ export default function SnapFoodScreen() {
     );
   }
 
+  if (!busy && effectiveResult) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg0 }]} edges={['top']}>
+        {capturedUri && (
+          <Image
+            source={{ uri: capturedUri }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        )}
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: 'transparent',
+            },
+          ]}
+        />
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            'rgba(2,10,20,0.15)',
+            'rgba(2,10,20,0.65)',
+            theme.bg0,
+            theme.bg0,
+          ]}
+          locations={[0, 0.32, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingTop: 8,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={{ padding: 6 }}
+            accessibilityLabel="Back"
+          >
+            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '700' }}>{'\u2039'}</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: 18,
+            paddingTop: 130,
+            paddingBottom: 16,
+            gap: 10,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: `${theme.teal}26`,
+              borderColor: theme.teal,
+              borderWidth: 0.5,
+              borderRadius: 20,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              marginBottom: 4,
+            }}
+          >
+            <Text style={{ color: theme.teal, fontSize: 11, fontWeight: '700' }}>
+              {effectiveResult.confidence === 'high'
+                ? '95% confident'
+                : effectiveResult.confidence === 'medium'
+                  ? 'Medium confidence'
+                  : 'Low confidence'}
+            </Text>
+          </View>
+          <Text style={[styles.foodName, { color: theme.text1 }]}>
+            {effectiveResult.food_name}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+            <Text style={[styles.calBig, { color: theme.gold }]}>
+              {Math.round(
+                effectiveResult.calories_per_serving ?? effectiveResult.calories
+              )}
+            </Text>
+            <Text style={[styles.calUnit, { color: theme.text3 }]}>
+              kcal per serving
+            </Text>
+          </View>
+          {(effectiveResult.calories_per_serving ?? effectiveResult.calories) ? (
+            <Text style={{ color: theme.text3, fontSize: 12 }}>
+              {'\u2248'} {(((effectiveResult.calories_per_serving ?? effectiveResult.calories) / 60)).toFixed(1)}km of walking to burn
+            </Text>
+          ) : null}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <MacroCell
+              label="Protein"
+              value={effectiveResult.protein_g}
+              color={theme.teal}
+              theme={theme}
+            />
+            <MacroCell
+              label="Carbs"
+              value={effectiveResult.carbs_g}
+              color={theme.gold}
+              theme={theme}
+            />
+            <MacroCell
+              label="Fat"
+              value={effectiveResult.fat_g}
+              color={theme.red}
+              theme={theme}
+            />
+            <MacroCell
+              label="Fiber"
+              value={effectiveResult.fiber_g}
+              color={theme.green}
+              theme={theme}
+            />
+          </View>
+          {(() => {
+            const cals = Math.round(
+              effectiveResult.calories_per_serving ?? effectiveResult.calories
+            );
+            const protein = effectiveResult.protein_g ?? 0;
+            const goalRow = goalQ.data;
+            const goal = goalRow?.main_goal ?? null;
+
+            let heading = 'Portion intelligence';
+            let body = 'Set a goal in your diet plan to get portion guidance tailored to what you are working towards.';
+
+            if (goal === 'lose_weight') {
+              heading = 'Portion intelligence \u00b7 weight loss';
+              body = cals > 700
+                ? `This is a larger portion at ${cals} kcal. Consider splitting it across two sittings or pairing it with a lighter meal later today to stay within a typical daily target.`
+                : `At ${cals} kcal this fits comfortably within most weight loss plans as a single meal.`;
+            } else if (goal === 'build_muscle') {
+              heading = 'Portion intelligence \u00b7 muscle building';
+              body = protein >= 25
+                ? `Strong protein content at ${Math.round(protein)}g. This supports muscle recovery well alongside your training.`
+                : `This meal has ${Math.round(protein)}g of protein. Consider adding a protein source to better support muscle building on a training day.`;
+            } else if (goal === 'energy_focus' || goal === 'gut_health' || goal === 'health_condition' || goal === 'sleep') {
+              heading = 'Portion intelligence';
+              body = `This meal is ${cals} kcal with ${Math.round(protein)}g protein. Your current goal is set to something other than weight or muscle focus, so we are not flagging portion size here, just sharing the numbers.`;
+            }
+
+            return (
+              <View
+                style={{
+                  borderWidth: 0.5,
+                  borderColor: `${theme.gold}40`,
+                  backgroundColor: `${theme.gold}12`,
+                  borderRadius: 14,
+                  padding: 12,
+                  marginTop: 8,
+                }}
+              >
+                <Text style={{ color: theme.gold, fontSize: 12, fontWeight: '700' }}>
+                  {heading}
+                </Text>
+                <Text
+                  style={{
+                    color: theme.text2,
+                    fontSize: 13,
+                    lineHeight: 19,
+                    marginTop: 6,
+                  }}
+                >
+                  {body}
+                </Text>
+              </View>
+            );
+          })()}
+          {effectiveResult.detected_ingredients &&
+            effectiveResult.detected_ingredients.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={[styles.ingTitle, { color: theme.text3 }]}>
+                  DETECTED INGREDIENTS
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                    marginTop: 8,
+                  }}
+                >
+                  {effectiveResult.detected_ingredients.map((ing) => (
+                    <View
+                      key={ing}
+                      style={{
+                        backgroundColor: theme.bg2,
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text style={{ color: theme.text2, fontSize: 12 }}>
+                        {ing}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          <Text
+            style={{
+              color: theme.text4,
+              fontSize: 11,
+              lineHeight: 16,
+              marginTop: 20,
+            }}
+          >
+            AI estimate, not professional nutrition advice.
+          </Text>
+        </ScrollView>
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingBottom: 14,
+            paddingTop: 10,
+            backgroundColor: theme.bg0,
+            gap: 8,
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              if (!effectiveResult) return;
+              router.push({
+                pathname: '/assistant',
+                params: { dietMealName: effectiveResult.food_name },
+              } as never);
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              backgroundColor: `${theme.purple}1F`,
+              borderColor: `${theme.purple}59`,
+              borderWidth: 0.5,
+              borderRadius: 14,
+              paddingVertical: 13,
+            }}
+          >
+            <Text style={{ color: theme.purple, fontSize: 13, fontWeight: '700' }}>
+              Ask Sofia for full expert review
+            </Text>
+          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => void addToLog()}
+              activeOpacity={0.85}
+              style={{
+                flex: 1,
+                backgroundColor: `${theme.teal}1F`,
+                borderColor: theme.teal,
+                borderWidth: 0.5,
+                borderRadius: 14,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: theme.teal, fontSize: 12.5, fontWeight: '700' }}>
+                Log this meal
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setResult(null);
+                setCapturedUri(null);
+                setManualFood('');
+                setManualCal('');
+              }}
+              activeOpacity={0.85}
+              style={{
+                flex: 1,
+                backgroundColor: `${theme.bg1}`,
+                borderColor: theme.border,
+                borderWidth: 0.5,
+                borderRadius: 14,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: theme.text1, fontSize: 12.5, fontWeight: '700' }}>
+                Scan another
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg0 }]} edges={['top']}>
       <BackHeader title="Snap Food" onBack={() => router.back()} />
@@ -308,207 +606,6 @@ export default function SnapFoodScreen() {
           </View>
         )}
 
-        {!busy && effectiveResult && (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.resultScroll}>
-            <Pressable
-              onPress={() => setShowFullReport(true)}
-              accessibilityRole="button"
-              accessibilityLabel="View full scan report"
-            >
-              <Text style={[styles.foodName, { color: theme.text1 }]}>{effectiveResult.food_name}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setShowFullReport(true)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                marginTop: 4,
-              }}
-            >
-              <Text style={{ color: theme.teal, fontSize: 12, fontWeight: '600' }}>
-                Tap to view full report
-              </Text>
-            </Pressable>
-
-            <Pressable onPress={() => setShowManual(true)}>
-              <View
-                style={[
-                  styles.confRow,
-                  {
-                    backgroundColor:
-                      effectiveResult.confidence === 'high' ? `${theme.green}1A` : `${theme.amber}1A`,
-                    borderColor:
-                      effectiveResult.confidence === 'high' ? `${theme.green}55` : `${theme.amber}55`,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.confBadge,
-                    { color: effectiveResult.confidence === 'high' ? theme.green : theme.amber },
-                  ]}
-                >
-                  {effectiveResult.confidence === 'high'
-                    ? '95% confident'
-                    : effectiveResult.confidence === 'medium'
-                      ? 'Medium confidence'
-                      : 'Low confidence - tap to correct'}
-                </Text>
-                {effectiveResult.serving_size_g ? (
-                  <Text style={[styles.servingTxt, { color: theme.text3 }]}>
-                    ? 1 serving ({Math.round(effectiveResult.serving_size_g)}g)
-                  </Text>
-                ) : null}
-              </View>
-            </Pressable>
-
-            <View style={styles.heroCals}>
-              <Text style={[styles.calBig, { color: theme.gold }]}>
-                {Math.round(effectiveResult.calories_per_serving ?? effectiveResult.calories)}
-              </Text>
-              <Text style={[styles.calUnit, { color: theme.text3 }]}>kcal per serving</Text>
-              <Text style={[styles.calContext, { color: theme.text3 }]}>
-                ? {((effectiveResult.calories_per_serving ?? effectiveResult.calories) / 60).toFixed(1)}
-                km of walking to burn
-              </Text>
-            </View>
-
-            <View style={styles.macroGrid}>
-              <MacroCell label="Protein" value={effectiveResult.protein_g} color={theme.teal} theme={theme} />
-              <MacroCell label="Carbs" value={effectiveResult.carbs_g} color={theme.gold} theme={theme} />
-              <MacroCell label="Fat" value={effectiveResult.fat_g} color={theme.red} theme={theme} />
-              <MacroCell label="Fiber" value={effectiveResult.fiber_g} color={theme.green} theme={theme} />
-            </View>
-
-            {(effectiveResult.weekly_calorie_impact ?? 0) > 0 && (
-              <View style={[styles.impactBox, { backgroundColor: theme.bg2, borderColor: theme.border }]}>
-                <Text style={[styles.impactTitle, { color: theme.text3 }]}>
-                  DAILY CONSUMPTION IMPACT
-                </Text>
-                <Text style={[styles.impactSub, { color: theme.text3 }]}>
-                  If you eat this every day:
-                </Text>
-                <ImpactRow
-                  left="Weekly"
-                  right={`+${Math.round(effectiveResult.weekly_calorie_impact ?? 0)} extra kcal`}
-                  theme={theme}
-                />
-                <ImpactRow
-                  left="Monthly"
-                  right={
-                    (effectiveResult.monthly_weight_risk_kg ?? 0) > 0
-                      ? `Risk of +${(effectiveResult.monthly_weight_risk_kg ?? 0).toFixed(1)}kg weight gain`
-                      : 'Low calorie impact'
-                  }
-                  theme={theme}
-                />
-                {(effectiveResult.daily_consumption_warning ?? null) && (
-                  <View
-                    style={[
-                      styles.warnBox,
-                      (effectiveResult.monthly_weight_risk_kg ?? 0) > 0.5
-                        ? { backgroundColor: `${theme.red}1A`, borderColor: `${theme.red}55` }
-                        : { backgroundColor: `${theme.amber}14`, borderColor: `${theme.amber}55` },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.warnTxt,
-                        {
-                          color:
-                            (effectiveResult.monthly_weight_risk_kg ?? 0) > 0.5
-                              ? theme.red
-                              : theme.amber,
-                        },
-                      ]}
-                    >
-                      ? {effectiveResult.daily_consumption_warning}
-                    </Text>
-                  </View>
-                )}
-                {effectiveResult.insulin_risk && (
-                  <View
-                    style={[
-                      styles.warnBox,
-                      { backgroundColor: `${theme.red}1A`, borderColor: `${theme.red}55` },
-                    ]}
-                  >
-                    <Text style={[styles.warnTxt, { color: theme.red }]}>
-                      ? May worsen insulin resistance
-                    </Text>
-                    <Text style={[styles.warnSub, { color: theme.text2 }]}>
-                      High glycemic load detected. Frequent consumption may impact blood sugar regulation.
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {effectiveResult.detected_ingredients && effectiveResult.detected_ingredients.length > 0 && (
-              <View style={[styles.ingBlock, { borderColor: theme.border }]}>
-                <Text style={[styles.ingTitle, { color: theme.text3 }]}>DETECTED INGREDIENTS</Text>
-                <View style={styles.ingChipRow}>
-                  {effectiveResult.detected_ingredients.slice(0, 12).map((ing) => (
-                    <View
-                      key={ing}
-                      style={[
-                        styles.ingChip,
-                        { borderColor: theme.border, backgroundColor: theme.bg2 },
-                      ]}
-                    >
-                      <Text style={[styles.ingChipTxt, { color: theme.text2 }]} numberOfLines={1}>
-                        {ing}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {(showManual || effectiveResult.confidence !== 'high') && (
-              <View style={styles.manualBox}>
-                <Text style={[styles.manualLbl, { color: theme.text3 }]}>Food name</Text>
-                <TextInput
-                  style={[styles.input, { borderColor: theme.border, color: theme.text1, backgroundColor: theme.bg2 }]}
-                  value={manualFood}
-                  onChangeText={setManualFood}
-                  placeholder="Describe the meal"
-                  placeholderTextColor={theme.text3}
-                />
-                <Text style={[styles.manualLbl, { color: theme.text3 }]}>Calories (kcal)</Text>
-                <TextInput
-                  style={[styles.input, { borderColor: theme.border, color: theme.text1, backgroundColor: theme.bg2 }]}
-                  value={manualCal}
-                  onChangeText={setManualCal}
-                  keyboardType="number-pad"
-                  placeholder="e.g. 450"
-                  placeholderTextColor={theme.text3}
-                />
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: theme.teal }]}
-              onPress={() => void addToLog()}
-            >
-              <Text style={[styles.addBtnTxt, { color: theme.bg0 }]}>{`Add to Today's Log`}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.outlineBtn, { borderColor: theme.border }]}
-              onPress={tryAgain}
-            >
-              <Text style={[styles.outlineTxt, { color: theme.text2 }]}>Try Again</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/food-history' as never)}
-              style={[styles.historyBtn, { borderColor: theme.border, backgroundColor: theme.bg2 }]}
-            >
-              <Text style={[styles.historyBtnText, { color: theme.text2 }]}>View all scan history</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        )}
-
         {!busy && !result && (
           <Text style={[styles.placeholder, { color: theme.text3 }]}>
             Capture or choose a photo to see nutrition estimates.
@@ -516,197 +613,6 @@ export default function SnapFoodScreen() {
         )}
       </View>
 
-      <Modal
-        visible={showFullReport}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowFullReport(false)}
-      >
-        <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg0 }]} edges={['top']}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 16,
-              paddingVertical: 12,
-              borderBottomWidth: 0.5,
-              borderBottomColor: theme.border,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => setShowFullReport(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Close full report"
-              style={{ padding: 4 }}
-            >
-              <Text style={{ color: theme.teal, fontSize: 14, fontWeight: '600' }}>Close</Text>
-            </TouchableOpacity>
-            <Text
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                color: theme.text1,
-                fontSize: 15,
-                fontWeight: '700',
-              }}
-            >
-              Full scan report
-            </Text>
-            <View style={{ width: 50 }} />
-          </View>
-
-          {capturedUri && (
-            <Image
-              source={{ uri: capturedUri }}
-              style={{ width: '100%', height: 180 }}
-              resizeMode="cover"
-            />
-          )}
-
-          <ScrollView
-            contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 10 }}
-          >
-            {effectiveResult && (
-              <>
-                <Text style={[styles.foodName, { color: theme.text1 }]}>
-                  {effectiveResult.food_name}
-                </Text>
-                <Text style={[styles.calBig, { color: theme.gold }]}>
-                  {Math.round(
-                    effectiveResult.calories_per_serving ?? effectiveResult.calories
-                  )}
-                </Text>
-                <Text style={[styles.calUnit, { color: theme.text3 }]}>
-                  kcal per serving
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                  <MacroCell
-                    label="Protein"
-                    value={effectiveResult.protein_g}
-                    color={theme.teal}
-                    theme={theme}
-                  />
-                  <MacroCell
-                    label="Carbs"
-                    value={effectiveResult.carbs_g}
-                    color={theme.gold}
-                    theme={theme}
-                  />
-                  <MacroCell
-                    label="Fat"
-                    value={effectiveResult.fat_g}
-                    color={theme.red}
-                    theme={theme}
-                  />
-                  <MacroCell
-                    label="Fiber"
-                    value={effectiveResult.fiber_g}
-                    color={theme.green}
-                    theme={theme}
-                  />
-                </View>
-
-                {(() => {
-                  const cals = Math.round(
-                    effectiveResult.calories_per_serving ?? effectiveResult.calories
-                  );
-                  const protein = effectiveResult.protein_g ?? 0;
-                  const goalRow = goalQ.data;
-                  const goal = goalRow?.main_goal ?? null;
-
-                  let heading = 'Nutrition context';
-                  let body = 'Set a goal in your diet plan to get portion guidance tailored to what you are working towards.';
-
-                  if (goal === 'lose_weight') {
-                    heading = 'For your weight loss goal';
-                    body = cals > 700
-                      ? `This is a larger portion at ${cals} kcal. Consider splitting it across two sittings or pairing it with a lighter meal later today to stay within a typical daily target.`
-                      : `At ${cals} kcal this fits comfortably within most weight loss plans as a single meal.`;
-                  } else if (goal === 'build_muscle') {
-                    heading = 'For your muscle building goal';
-                    body = protein >= 25
-                      ? `Strong protein content at ${Math.round(protein)}g. This supports muscle recovery well alongside your training.`
-                      : `This meal has ${Math.round(protein)}g of protein. Consider adding a protein source to better support muscle building on a training day.`;
-                  } else if (goal === 'energy_focus' || goal === 'gut_health' || goal === 'health_condition' || goal === 'sleep') {
-                    heading = 'Nutrition context';
-                    body = `This meal is ${cals} kcal with ${Math.round(protein)}g protein. Your current goal is set to something other than weight or muscle focus, so we are not flagging portion size here, just sharing the numbers.`;
-                  }
-
-                  return (
-                    <View
-                      style={[
-                        styles.ingBlock,
-                        { borderColor: theme.border, marginTop: 16 },
-                      ]}
-                    >
-                      <Text style={[styles.ingTitle, { color: theme.text3 }]}>
-                        {heading.toUpperCase()}
-                      </Text>
-                      <Text
-                        style={{
-                          color: theme.text2,
-                          fontSize: 13,
-                          lineHeight: 19,
-                          marginTop: 8,
-                        }}
-                      >
-                        {body}
-                      </Text>
-                    </View>
-                  );
-                })()}
-                {effectiveResult.detected_ingredients &&
-                  effectiveResult.detected_ingredients.length > 0 && (
-                    <View
-                      style={[
-                        styles.ingBlock,
-                        { borderColor: theme.border, marginTop: 16 },
-                      ]}
-                    >
-                      <Text style={[styles.ingTitle, { color: theme.text3 }]}>
-                        DETECTED INGREDIENTS
-                      </Text>
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          flexWrap: 'wrap',
-                          gap: 6,
-                          marginTop: 8,
-                        }}
-                      >
-                        {effectiveResult.detected_ingredients.map((ing) => (
-                          <View
-                            key={ing}
-                            style={{
-                              backgroundColor: theme.bg2,
-                              borderRadius: 8,
-                              paddingHorizontal: 10,
-                              paddingVertical: 6,
-                            }}
-                          >
-                            <Text style={{ color: theme.text2, fontSize: 12 }}>
-                              {ing}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                <Text
-                  style={{
-                    color: theme.text4,
-                    fontSize: 11,
-                    lineHeight: 16,
-                    marginTop: 20,
-                  }}
-                >
-                  AI estimate, not professional nutrition advice.
-                </Text>
-              </>
-            )}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }

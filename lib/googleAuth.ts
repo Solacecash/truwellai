@@ -58,6 +58,15 @@ export type GoogleSignInResult =
   | { success: true; user: { id: string; email: string | null }; isNew: boolean }
   | { success: false; error: string; cancelled?: boolean };
 
+function developerErrorMessage(): string {
+  return (
+    'Google Sign-In is misconfigured (DEVELOPER_ERROR). ' +
+    'Use the Web OAuth client ID in EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, register your Android SHA-1/SHA-256 ' +
+    'for package com.truwell.ai in Google Cloud Console (or Firebase), then rebuild the native app. ' +
+    'Run: npx @react-native-google-signin/config-doctor'
+  );
+}
+
 export async function signInWithGoogle(): Promise<GoogleSignInResult> {
   if (Platform.OS === 'web') {
     return { success: false, error: 'Google sign-in is not available on web.' };
@@ -73,6 +82,7 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
   }
 
   try {
+    configureGoogleSignIn();
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
     const response = await GoogleSignin.signIn();
@@ -149,6 +159,9 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
     }
     if (e.code === statusCodes.IN_PROGRESS) {
       return { success: false, error: 'Sign in already in progress.' };
+    }
+    if (e.code === '10' || String(e.message ?? '').includes('DEVELOPER_ERROR')) {
+      return { success: false, error: developerErrorMessage() };
     }
 
     if (__DEV__) console.error('[googleAuth]', err);

@@ -61,7 +61,7 @@ export default function SpecOnboardingLayout() {
         name="account"
         options={{ gestureEnabled: false, animation: 'fade' }}
       />
-      <Stack.Screen name="subscription" />
+      <Stack.Screen name="subscription" options={{ gestureEnabled: false }} />
       <Stack.Screen
         name="success"
         options={{ gestureEnabled: false, animation: 'fade' }}

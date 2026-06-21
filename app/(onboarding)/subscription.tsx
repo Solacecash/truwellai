@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Dimensions,
   LayoutAnimation,
@@ -14,6 +14,7 @@ import {
   View,
   Alert,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -47,6 +48,7 @@ import type { AdaptyPaywallProduct } from 'react-native-adapty';
 
 import { BootstrapLoading } from '@/components/BootstrapLoading';
 import { StoreTrustBadges } from '@/components/subscription/StoreTrustBadges';
+import { SubscriptionHeroTicker } from '@/components/subscription/SubscriptionHeroTicker';
 
 import {
   DISPLAYED_PLANS,
@@ -367,43 +369,19 @@ function ShimmerCTA({
   );
 }
 
-function SocialProofTicker() {
-  const ITEMS = [
-    'Thousands of families trust TruWell every month',
-    '50,000+ guardians worldwide',
-    '47 health databases integrated',
-    '127 of 500 founder slots claimed',
-  ];
-  const all = [...ITEMS, ...ITEMS];
-  const translateX = useSharedValue(0);
-  const [totalWidth, setTotalWidth] = useState(0);
-  useEffect(() => {
-    if (totalWidth === 0) return;
-    translateX.value = 0;
-    translateX.value = withRepeat(
-      withTiming(-(totalWidth / 2), { duration: 18000, easing: Easing.linear }),
-      -1,
-      false
-    );
-  }, [totalWidth, translateX]);
-  const animStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
-  return (
-    <View style={tickerStyles.wrap}>
-      <Animated.View
-        style={[{ flexDirection: 'row', alignItems: 'center' }, animStyle]}
-        onLayout={(e) => setTotalWidth(e.nativeEvent.layout.width)}
-      >
-        {all.map((item, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={tickerStyles.text}>{item}</Text>
-            <Text style={tickerStyles.dot}> · </Text>
-          </View>
-        ))}
-      </Animated.View>
-    </View>
-  );
-}
-
+const tickerStyles = StyleSheet.create({
+  wrap: {
+    minHeight: 44,
+  },
+  text: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(240,244,255,0.88)',
+    fontFamily: OB_FONTS.semiBold,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+});
 const founderStyles = StyleSheet.create({
   slotWrap: { marginTop: 4, marginBottom: 4 },
   slotRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
@@ -445,18 +423,22 @@ const trustStyles = StyleSheet.create({
   sub: { fontFamily: OB_FONTS.body, fontSize: 9, color: OB_COLORS.white40, textAlign: 'center' },
 });
 
-const tickerStyles = StyleSheet.create({
-  wrap: { backgroundColor: 'rgba(255,255,255,0.03)', borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)', paddingVertical: 7, overflow: 'hidden' },
-  text: { fontSize: 10, color: 'rgba(240,244,255,0.40)', fontFamily: OB_FONTS.body, paddingHorizontal: 8 },
-  dot: { fontSize: 10, color: OB_COLORS.gold, fontFamily: OB_FONTS.body },
-});
-
 export default function SubscriptionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const selectedRole = useOnboardingStore((s) => s.selectedRole);
   const setConversionFlowStep = useOnboardingStore((s) => s.setConversionFlowStep);
   const handleBack = useOnboardingBack(10);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [handleBack])
+  );
 
   const [selectedPlan, setSelectedPlan] = useState<'premium' | 'family' | 'founder'>('family');
   const [purchasing, setPurchasing] = useState(false);
@@ -702,7 +684,7 @@ export default function SubscriptionScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        <Pressable onPress={handleBack} style={styles.backBtn} accessibilityRole="button">
+        <Pressable onPress={handleBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={styles.backIcon}>‹</Text>
         </Pressable>
 
@@ -715,9 +697,12 @@ export default function SubscriptionScreen() {
           </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(80).springify()}>
-          <SocialProofTicker />
-        </Animated.View>
+        <View style={{ marginBottom: 4 }}>
+          <SubscriptionHeroTicker
+            style={tickerStyles.wrap}
+            textStyle={tickerStyles.text}
+          />
+        </View>
 
         <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.freeTrialBanner}>
           <Text style={styles.freeTrialIcon}>🎁</Text>

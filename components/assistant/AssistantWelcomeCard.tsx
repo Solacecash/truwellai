@@ -9,7 +9,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { DrTruWellAvatar } from '@/components/ai/DrTruWellAvatar';
+import { SofiaAvatar } from '@/components/ai/SofiaAvatar';
+import { SofiaBadge } from '@/components/ai/SofiaBadge';
 import { hapticLight } from '@/lib/haptics';
 import { useTheme } from '@/theme/ThemeContext';
 
@@ -45,7 +46,6 @@ const CHARS_PER_TICK = 5;
 const HERO_CARD_BG = 'rgba(30, 36, 51, 0.65)';
 const HERO_CARD_BORDER = '#2E3648';
 const HERO_ICON_RING = '#2DD4BF';
-const HERO_ICON_FILL = '#0B0F1A';
 const HERO_SUBTEXT = '#9CA3C0';
 const DISCLAIMER_AMBER = '#F2C200';
 
@@ -257,14 +257,19 @@ export function AssistantWelcomeCard({ onChipPress }: Props) {
       <View style={styles.heroCard}>
         <View style={styles.heroIconWrap}>
           <View style={styles.heroIconRing}>
-            <DrTruWellAvatar
-              size="small"
+            <SofiaAvatar
+              size="large"
               teal={theme.teal}
               gold={theme.gold}
-              greetOnMount={false}
+              purple={theme.purple}
               speaking={!doneAll}
+              showStatusDot={false}
             />
           </View>
+        </View>
+
+        <View style={styles.badgeWrap}>
+          <SofiaBadge variant="pill" />
         </View>
 
         <View style={styles.heroTextWrap}>
@@ -393,20 +398,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroIconWrap: {
-    marginBottom: 12,
+    marginBottom: 10,
     shadowColor: HERO_ICON_RING,
     shadowOpacity: 0.15,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
     elevation: 4,
   },
+  badgeWrap: {
+    marginBottom: 14,
+  },
   heroIconRing: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: HERO_ICON_RING,
-    backgroundColor: HERO_ICON_FILL,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

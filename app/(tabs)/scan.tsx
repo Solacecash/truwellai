@@ -8,8 +8,9 @@ import { useAuthStore } from '@/stores/authStore';
 export { TruWellErrorBoundary as ErrorBoundary };
 import { isGS1Payload, parseGS1 } from '@/lib/gs1Parser';
 import { mapRemoteScan } from '@/lib/mapScanResult';
+import { persistScanResult } from '@/lib/healthScores';
 import { supabase } from '@/lib/supabase';
-import { useScanStore } from '@/stores/scanStore';
+import { useScanStore, type ScanResultPayload } from '@/stores/scanStore';
 import { useUserProfileStore } from '@/stores/userProfileStore';
 import { useTheme } from '@/theme/ThemeContext';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -44,10 +45,12 @@ type RecentChip = { barcode: string; productName: string };
 // ---------------------------------------------------------------------------
 // Scan product — calls scan-ingredient-analysis, falls back to scanBarcode
 // ---------------------------------------------------------------------------
+type ScanAnalysisResult = ScanResultPayload & { shouldPersist?: boolean };
+
 async function runScanIngredientAnalysis(
   barcode: string,
   healthProfile: Record<string, unknown> | null
-) {
+): Promise<ScanAnalysisResult> {
   // 1. Look up product in barcode_products
   let ingredientNames: string[] = [];
   let productName: string | undefined;
@@ -87,7 +90,7 @@ async function runScanIngredientAnalysis(
           { needs_ocr: true, gs1Country: d.gs1Country }
         );
       }
-      return mapRemoteScan(d);
+      return { ...mapRemoteScan(d), shouldPersist: true };
     }
   } catch (e) {
     if ((e as { needs_ocr?: boolean }).needs_ocr) throw e;
@@ -96,7 +99,7 @@ async function runScanIngredientAnalysis(
 
   // 3. Fallback to existing scanBarcode edge function
   const raw = await scanBarcode(barcode);
-  return mapRemoteScan(raw);
+  return { ...mapRemoteScan(raw), shouldPersist: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +245,9 @@ function ScanScreen() {
           }
           setLastResult(result);
           if (userId) {
+            if (result.shouldPersist !== false) {
+              void persistScanResult(userId, result, gs1?.gtin ?? data);
+            }
             void incrementScanCount(userId).then(() =>
               getQuotaStatus(userId).then(setQuotaStatus).catch(() => {})
             );
@@ -266,6 +272,9 @@ function ScanScreen() {
           });
         }
         if (userId) {
+          if (result.shouldPersist !== false) {
+            void persistScanResult(userId, result, data);
+          }
           void incrementScanCount(userId).then(() =>
             getQuotaStatus(userId).then(setQuotaStatus).catch(() => {})
           );
@@ -329,6 +338,7 @@ function ScanScreen() {
       }
       setLastResult(mapped);
       if (userId) {
+        void persistScanResult(userId, mapped);
         void incrementScanCount(userId).then(() =>
           getQuotaStatus(userId).then(setQuotaStatus).catch(() => {})
         );

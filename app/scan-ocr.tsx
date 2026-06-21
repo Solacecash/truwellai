@@ -1,6 +1,6 @@
 import { OcrLabelScanner } from '@/components/scan/OcrLabelScanner';
 import { BackHeader } from '@/components/ui/BackHeader';
-import { supabase } from '@/lib/supabase';
+import { persistScanResult } from '@/lib/healthScores';
 import { useAuthStore } from '@/stores/authStore';
 import { useScanStore, type GradedIngredient, type IngredientTraffic } from '@/stores/scanStore';
 import { useTheme } from '@/theme/ThemeContext';
@@ -69,40 +69,21 @@ export default function ScanOcrScreen() {
           : null) ||
         `${result.product_type.charAt(0).toUpperCase()}${result.product_type.slice(1)} product (${result.ingredient_count} ingredient${result.ingredient_count !== 1 ? 's' : ''} found)`;
 
-      setLastResult({
+      const payload = {
         grade: result.overall_grade,
         score: Math.max(0, Math.min(100, Math.round(result.safety_score))),
         summary: result.summary || 'Scanned via label OCR.',
         ingredients,
         productName: productLabel,
         riskNotes,
-        scanMethod: 'ocr',
+        scanMethod: 'ocr' as const,
         personalizedScore: Math.max(0, Math.min(100, Math.round(result.safety_score))),
-      });
+      };
+
+      setLastResult(payload);
 
       if (uid) {
-        try {
-          await supabase.from('scans').insert({
-            user_id: uid,
-            mode: 'ingredient',
-            scan_method: 'ocr',
-            raw_payload: {
-              productName: productLabel,
-              ingredients: result.ingredients,
-              ingredientsList: result.ingredients,
-              ocrLen: result.detected_text.length,
-              product_type: result.product_type,
-            },
-            grade: result.overall_grade,
-            score: Math.round(result.safety_score),
-            result_summary: {
-              ...result,
-              scan_method: 'ocr',
-            },
-          });
-        } catch {
-          /* non-fatal */
-        }
+        void persistScanResult(uid, payload);
       }
 
       router.replace('/scan-result');

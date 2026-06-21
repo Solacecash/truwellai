@@ -1,5 +1,8 @@
 import { SegmentedIndicator } from '@/components/ui/SegmentedIndicator';
 import { TruWellShield } from '@/components/onboarding/TruWellShield';
+import { BackHeader } from '@/components/ui/BackHeader';
+import { SubscriptionHeroTicker } from '@/components/subscription/SubscriptionHeroTicker';
+import { Ionicons } from '@expo/vector-icons';
 import { getFounderSlotsRemaining } from '@/lib/quotaManager';
 import {
   DISPLAYED_PLANS,
@@ -21,12 +24,13 @@ import {
 } from '@/lib/adapty';
 import type { AdaptyPaywallProduct } from 'react-native-adapty';
 import { useAuthStore } from '@/stores/authStore';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import {
   Alert,
+  BackHandler,
   ScrollView,
   StyleSheet,
   Text,
@@ -76,12 +80,7 @@ const ROTATING_MESSAGES = [
   'Real protection for the people who depend on you.',
 ];
 
-const TICKER_ITEMS = [
-  'Trusted by families who want real answers',
-  'Checked against global safety databases',
-  'Built for the people you protect most',
-  'Private, secure, and always yours',
-];
+const URGENCY_RED = '#E24B4A';
 
 const GOLD = '#C9A84C';
 const TEAL = '#00E5C8';
@@ -89,6 +88,13 @@ const GREEN = '#2ED573';
 const BLUE = '#1E90FF';
 const RED = '#FF4757';
 const BG_DARK = '#020A14';
+
+/** Redesigned hero: pill trust badges (replaces plain emoji text row). */
+const HERO_TRUST_BADGES = [
+  { icon: 'star' as const, label: 'Trusted', color: GOLD },
+  { icon: 'lock-closed' as const, label: 'Private', color: GREEN },
+  { icon: 'people' as const, label: 'Families', color: '#A78BFA' },
+];
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -292,6 +298,19 @@ function LifetimeCard({
 
   return (
     <Animated.View style={[cardStyle, styles.lifetimeCard]}>
+      {plan.subheadline && (
+        <Text
+          style={{
+            color: 'rgba(240,244,255,0.65)',
+            fontSize: 12,
+            textAlign: 'center',
+            paddingTop: 10,
+            paddingHorizontal: 14,
+          }}
+        >
+          {plan.subheadline}
+        </Text>
+      )}
       {/* Top banner */}
       <View style={styles.lifetimeBanner}>
         <Text style={styles.lifetimeBannerLeft}>{plan.topBannerLabel}</Text>
@@ -384,7 +403,7 @@ function LifetimeCard({
           <View style={[styles.fomoStrip, { backgroundColor: 'rgba(255,71,87,0.06)' }]}>
             <PulsingDot color={RED} size={6} />
             <Text style={[styles.fomoText, { color: RED }]}>
-              {founderSlots} founder slots - never restocked
+              Limited founder slots - never restocked
             </Text>
           </View>
         )}
@@ -479,10 +498,30 @@ function FamilyCard({
           <FeatureRow key={f.text} feature={f} accentColor={TEAL} />
         ))}
 
+        {plan.rationaleTitle && plan.rationaleBody && (
+          <View
+            style={{
+              marginTop: 14,
+              padding: 12,
+              borderRadius: 12,
+              backgroundColor: 'rgba(0,229,200,0.06)',
+              borderWidth: 1,
+              borderColor: 'rgba(0,229,200,0.18)',
+            }}
+          >
+            <Text style={{ color: TEAL, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>
+              {plan.rationaleTitle}
+            </Text>
+            <Text style={{ color: 'rgba(240,244,255,0.65)', fontSize: 12, lineHeight: 17 }}>
+              {plan.rationaleBody}
+            </Text>
+          </View>
+        )}
         {/* CTA */}
         <View style={{ marginTop: 14 }}>
           <ShimmerButton
             label={plan.ctaLabel}
+            subtext={plan.ctaSubtext}
             bgColor={TEAL}
             textColor={BG_DARK}
             loading={loading}
@@ -529,21 +568,35 @@ function ProYearlyCard({
 
   return (
     <Animated.View style={[cardStyle, styles.proYearlyCard]}>
-      {/* Floating badge */}
-      <View style={styles.floatingBadgeGreen}>
-        <Text style={[styles.floatingBadgeText, { color: GREEN }]}>{plan.floatingBadge}</Text>
+      <View style={styles.proYearlyHeader}>
+        {plan.floatingBadge ? (
+          <View style={styles.proYearlyBadge}>
+            <Text style={[styles.proYearlyBadgeText, { color: GREEN }]} numberOfLines={1}>
+              {plan.floatingBadge}
+            </Text>
+          </View>
+        ) : null}
+
+        {(plan.savingsBarLeft || plan.savingsBarRight) ? (
+          <View style={styles.savingsBar}>
+            <Text style={[styles.savingsBarText, styles.savingsBarTextLeft]} numberOfLines={1}>
+              {plan.savingsBarLeft}
+            </Text>
+            <Text style={[styles.savingsBarText, styles.savingsBarTextRight]} numberOfLines={1}>
+              {plan.savingsBarRight}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={styles.proYearlyTitleBlock}>
+          <Text style={styles.proYearlyName}>{plan.name}</Text>
+          {plan.subheadline ? (
+            <Text style={styles.proYearlySubheadline}>{plan.subheadline}</Text>
+          ) : null}
+        </View>
       </View>
 
-      {/* Savings bar */}
-      <View style={styles.savingsBar}>
-        <Text style={styles.savingsBarText}>{plan.savingsBarLeft}</Text>
-        <Text style={styles.savingsBarText}>{plan.savingsBarRight}</Text>
-      </View>
-
-      <View style={{ padding: 14, paddingTop: 10 }}>
-        <Text style={{ color: GREEN, fontSize: 13, fontWeight: '700', marginBottom: 6 }}>
-          {plan.name}
-        </Text>
+      <View style={styles.proYearlyBody}>
         {/* Price */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
           <Text style={[styles.priceMain, { color: GREEN, fontSize: 36 }]}>{plan.priceDisplay}</Text>
@@ -572,7 +625,25 @@ function ProYearlyCard({
         {plan.features.map((f) => (
           <FeatureRow key={f.text} feature={f} accentColor={GREEN} />
         ))}
-
+        {plan.rationaleTitle && plan.rationaleBody && (
+          <View
+            style={{
+              marginTop: 14,
+              padding: 12,
+              borderRadius: 12,
+              backgroundColor: 'rgba(46,213,115,0.06)',
+              borderWidth: 1,
+              borderColor: 'rgba(46,213,115,0.18)',
+            }}
+          >
+            <Text style={{ color: GREEN, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>
+              {plan.rationaleTitle}
+            </Text>
+            <Text style={{ color: 'rgba(240,244,255,0.65)', fontSize: 12, lineHeight: 17 }}>
+              {plan.rationaleBody}
+            </Text>
+          </View>
+        )}
         {/* CTA */}
         <View style={{ marginTop: 14 }}>
           <ShimmerButton
@@ -625,14 +696,14 @@ function ProMonthlyCard({
 
   return (
     <Animated.View style={[cardStyle, styles.proMonthlyCard]}>
-      <View style={{ padding: 14 }}>
-        <Text style={{ color: BLUE, fontSize: 13, fontWeight: '700', marginBottom: 4 }}>
-          {plan.name}
-        </Text>
+      <View style={styles.proMonthlyHeader}>
+        <Text style={styles.proMonthlyName}>{plan.name}</Text>
         <Text style={styles.premonthlyNote}>
           {hideYearlyNudge ? 'Monthly membership' : 'Or start monthly - no commitment'}
         </Text>
+      </View>
 
+      <View style={styles.proMonthlyBody}>
         {/* Price */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
           <Text style={[styles.priceMain, { color: BLUE, fontSize: 32 }]}>{plan.priceDisplay}</Text>
@@ -720,54 +791,70 @@ function TrustBadges() {
 }
 
 // ---------------------------------------------------------------------------
-// Social proof ticker
+// Subscription hero (settings variant) — redesigned landing header
+// Replaces: TruWellShield + headline block, SocialProofTicker marquee, UrgencyBar
 // ---------------------------------------------------------------------------
 
-function SocialProofTicker({ founderSlots }: { founderSlots: number }) {
-  const claimedCount = 500 - founderSlots;
-  const founderSlotItem = `${claimedCount} of 500 founder slots claimed`;
-  const allItems = [...TICKER_ITEMS, founderSlotItem, ...TICKER_ITEMS, founderSlotItem];
-  const translateX = useSharedValue(0);
-  const [totalWidth, setTotalWidth] = useState(0);
+/** Staggered entrance: opacity 0→1 and translateY 8→0 over 0.5s ease. */
+function HeroEntrance({
+  delayMs,
+  children,
+  style,
+}: {
+  delayMs: number;
+  children: ReactNode;
+  style?: object;
+}) {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(8);
 
   useEffect(() => {
-    if (totalWidth === 0) return;
-    translateX.value = 0;
-    translateX.value = withRepeat(
-      withTiming(-(totalWidth / 2), { duration: 16000, easing: Easing.linear }),
+    const timer = setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
+      translateY.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.ease) });
+    }, delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs, opacity, translateY]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return <Animated.View style={[animStyle, style]}>{children}</Animated.View>;
+}
+
+/** Urgency pulse dot: opacity toggles 1 ↔ 0.25 every 900ms (replaces scale-based PulsingDot here). */
+function UrgencyPulseDot({ color = URGENCY_RED, size = 6 }: { color?: string; size?: number }) {
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.25, { duration: 450, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 450, easing: Easing.inOut(Easing.ease) })
+      ),
       -1,
       false
     );
-  }, [totalWidth]);
+  }, [opacity]);
 
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
+  const dotStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
-    <View style={styles.tickerContainer}>
-      <Animated.View
-        style={[{ flexDirection: 'row', alignItems: 'center' }, animStyle]}
-        onLayout={(e) => setTotalWidth(e.nativeEvent.layout.width)}
-      >
-        {allItems.map((item, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.tickerText}>{item}</Text>
-            <Text style={[styles.tickerDot, { color: GOLD }]}> · </Text>
-          </View>
-        ))}
-      </Animated.View>
-    </View>
+    <Animated.View
+      style={[
+        dotStyle,
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: color },
+      ]}
+    />
   );
 }
 
-// ---------------------------------------------------------------------------
-// Urgency bar
-// ---------------------------------------------------------------------------
-
-function UrgencyBar({ founderSlots }: { founderSlots: number }) {
+function SubscriptionHeroSection() {
   const [seconds, setSeconds] = useState(() => Math.floor(Math.random() * (28800 - 7200 + 1)) + 7200);
 
+  // Live countdown — same source as former UrgencyBar; display format only changed.
   useEffect(() => {
     const id = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
@@ -779,12 +866,52 @@ function UrgencyBar({ founderSlots }: { founderSlots: number }) {
   const timeStr = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 
   return (
-    <View style={styles.urgencyBar}>
-      <PulsingDot color={RED} size={7} />
-      <Text style={styles.urgencyText} numberOfLines={1}>
-        {founderSlots} of 500 lifetime founder slots remaining
-      </Text>
-      <Text style={styles.urgencyTimer}>{timeStr}</Text>
+    <View style={styles.heroRoot}>
+      <View style={styles.heroBody}>
+        {/* Icon badge — shield-check in gold pill (replaces large TruWellShield) */}
+        <HeroEntrance delayMs={0}>
+          <View style={styles.heroIconBadge}>
+            <Ionicons name="shield-checkmark" size={24} color={GOLD} />
+          </View>
+        </HeroEntrance>
+
+        {/* Headline — lighter weight, "most" in gold on same block */}
+        <HeroEntrance delayMs={120}>
+          <Text style={styles.heroHeadline}>
+            Protect what matters{' '}
+            <Text style={{ color: GOLD }}>most</Text>
+          </Text>
+        </HeroEntrance>
+
+        {/* Subheading — max-width 260px, two-line centered wrap */}
+        <HeroEntrance delayMs={240}>
+          <Text style={styles.heroSubheading}>
+            Personalised wellness support for you and the people you love
+          </Text>
+        </HeroEntrance>
+
+        {/* Trust pills — replaces static emoji text row */}
+        <HeroEntrance delayMs={380} style={styles.heroTrustRow}>
+          {HERO_TRUST_BADGES.map((badge) => (
+            <View key={badge.label} style={styles.heroTrustPill}>
+              <Ionicons name={badge.icon} size={11} color={badge.color} />
+              <Text style={styles.heroTrustLabel}>{badge.label}</Text>
+            </View>
+          ))}
+        </HeroEntrance>
+      </View>
+
+      {/* Ticker — always visible above urgency bar (no stagger wrapper). */}
+      <SubscriptionHeroTicker style={styles.heroTickerRow} textStyle={styles.heroTickerText} />
+
+      {/* Urgency — simplified copy + pulse dot + live timer */}
+      <View style={styles.heroUrgencyRow}>
+        <UrgencyPulseDot />
+        <Text style={styles.heroUrgencyText} numberOfLines={1}>
+          Limited founder slots remaining
+        </Text>
+        <Text style={styles.heroUrgencyTimer}>{timeStr}</Text>
+      </View>
     </View>
   );
 }
@@ -811,6 +938,29 @@ export function SubscriptionScreenContent({
   const queryClient = useQueryClient();
   const session = useAuthStore((s) => s.session);
   const userId = session?.user?.id;
+
+  const handleGoBack = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (onContinueFree && isOnboarding) {
+      onContinueFree();
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(tabs)');
+  }, [isOnboarding, onContinueFree, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleGoBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [handleGoBack])
+  );
 
   const [billingCycle, setBillingCycle] = useState<'yearly' | 'monthly'>(isOnboarding ? 'monthly' : 'yearly');
   const [loadingPlanId, setLoadingPlanId] = useState<PlanId | null>(null);
@@ -989,56 +1139,25 @@ export function SubscriptionScreenContent({
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <BackHeader title="Subscription" onBack={handleGoBack} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TruWellShield size={40} animated={false} />
-          <Text style={styles.headline}>
-            {isOnboarding ? (
-              <>
-                Choose how fast you get your{' '}
-                <Text style={{ color: GOLD }}>results</Text>
-              </>
-            ) : (
-              <>
-                Protect What{' '}
-                <Text style={{ color: GOLD }}>Matters Most</Text>
-              </>
-            )}
-          </Text>
-          {!isOnboarding && (
-            <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 13, textAlign: 'center', marginTop: 4, marginBottom: 2 }}>
-              Personalised wellness support for you and the people you love.
+        {isOnboarding ? (
+          <View style={styles.header}>
+            <TruWellShield size={40} animated={false} />
+            <Text style={styles.headline}>
+              Choose how fast you get your{' '}
+              <Text style={{ color: GOLD }}>results</Text>
             </Text>
-          )}
-          <Animated.Text style={[styles.rotatingMsg, rotStyle]}>
-            {isOnboarding
-              ? 'Founder Lifetime, Family Guardian, and monthly Pro unlock unlimited scans, reports, and AI coaching.'
-              : ROTATING_MESSAGES[msgIdx]}
-          </Animated.Text>
-          {!isOnboarding && (
-            <View style={{ flexDirection: 'row', gap: 14, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 12, fontWeight: '600' }}>
-                ⭐ Trusted by thousands
-              </Text>
-              <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 12, fontWeight: '600' }}>
-                🔒 Private & Secure
-              </Text>
-              <Text style={{ color: 'rgba(240,244,255,0.55)', fontSize: 12, fontWeight: '600' }}>
-                👨‍👩‍👧‍👦 Built for families
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Social proof ticker */}
-        <SocialProofTicker founderSlots={founderSlots} />
-
-        {/* Urgency bar */}
-        <UrgencyBar founderSlots={founderSlots} />
+            <Animated.Text style={[styles.rotatingMsg, rotStyle]}>
+              Founder Lifetime, Family Guardian, and monthly Pro unlock unlimited scans, reports, and AI coaching.
+            </Animated.Text>
+          </View>
+        ) : (
+          <SubscriptionHeroSection />
+        )}
 
         {/* Billing toggle — settings only (onboarding shows lifetime, family, monthly, free) */}
         {!isOnboarding ? (
@@ -1222,37 +1341,101 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG_DARK },
   scroll: { paddingBottom: 20 },
 
-  // Header
+  // Header (onboarding variant only; settings uses heroRoot below)
   header: { alignItems: 'center', paddingTop: 20, paddingBottom: 14, paddingHorizontal: 20, gap: 8 },
   headline: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5, color: '#F0F4FF', textAlign: 'center' },
   rotatingMsg: { fontSize: 11, color: 'rgba(240,244,255,0.45)', fontStyle: 'italic', textAlign: 'center' },
 
-  // Ticker
-  tickerContainer: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    paddingVertical: 7,
-    overflow: 'hidden',
+  // Redesigned subscription hero (settings landing header)
+  heroRoot: {
+    backgroundColor: BG_DARK,
+    paddingBottom: 4,
   },
-  tickerText: { fontSize: 10, color: 'rgba(240,244,255,0.45)', fontWeight: '700', paddingHorizontal: 8 },
-  tickerDot: { fontSize: 10, fontWeight: '700' },
-
-  // Urgency bar
-  urgencyBar: {
+  heroBody: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 14,
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  heroIconBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(201,168,76,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroHeadline: {
+    fontSize: 24,
+    fontWeight: '500',
+    color: '#F0F4FF',
+    textAlign: 'center',
+    lineHeight: 30,
+    letterSpacing: -0.3,
+  },
+  heroSubheading: {
+    fontSize: 13,
+    color: 'rgba(240,244,255,0.5)',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 260,
+  },
+  heroTrustRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  heroTrustPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+  },
+  heroTrustLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(240,244,255,0.65)',
+  },
+  heroTickerRow: {
+    minHeight: 44,
+  },
+  heroTickerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(240,244,255,0.88)',
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  heroUrgencyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255,71,87,0.09)',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,71,87,0.20)',
+    backgroundColor: 'rgba(226,75,74,0.07)',
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
-  urgencyText: { fontSize: 11, color: RED, fontWeight: '700', flex: 1 },
-  urgencyTimer: { fontSize: 11, color: RED, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  heroUrgencyText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(240,244,255,0.75)',
+    flex: 1,
+  },
+  heroUrgencyTimer: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(240,244,255,0.5)',
+    fontVariant: ['tabular-nums'],
+  },
 
   // Billing toggle
   toggleSection: { alignItems: 'center', paddingVertical: 10, paddingBottom: 4 },
@@ -1324,32 +1507,64 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(46,213,115,0.25)',
     backgroundColor: '#020A14',
     overflow: 'hidden',
-    paddingTop: 12,
   },
-  floatingBadgeGreen: {
-    position: 'absolute',
-    top: -1,
+  proYearlyHeader: {
+    gap: 0,
+  },
+  proYearlyBadge: {
     alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 8,
     backgroundColor: 'rgba(46,213,115,0.10)',
     borderWidth: 1,
-    borderTopWidth: 0,
     borderColor: 'rgba(46,213,115,0.22)',
-    borderBottomLeftRadius: 9,
-    borderBottomRightRadius: 9,
+    borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    zIndex: 1,
+    paddingVertical: 5,
+    maxWidth: '92%',
+  },
+  proYearlyBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textAlign: 'center',
+  },
+  proYearlyTitleBlock: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+    gap: 4,
+  },
+  proYearlyName: {
+    color: GREEN,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.15,
+  },
+  proYearlySubheadline: {
+    color: 'rgba(240,244,255,0.55)',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  proYearlyBody: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
   },
   savingsBar: {
     backgroundColor: 'rgba(46,213,115,0.07)',
+    borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(46,213,115,0.12)',
+    borderColor: 'rgba(46,213,115,0.12)',
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 7,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
   },
-  savingsBarText: { fontSize: 9, fontWeight: '800', color: GREEN, letterSpacing: 1.2 },
+  savingsBarText: { fontSize: 9, fontWeight: '800', color: GREEN, letterSpacing: 1.1 },
+  savingsBarTextLeft: { flex: 1, textAlign: 'left' },
+  savingsBarTextRight: { flex: 1, textAlign: 'right' },
 
   // Pro monthly card
   proMonthlyCard: {
@@ -1357,8 +1572,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(30,144,255,0.22)',
     backgroundColor: '#020A14',
+    overflow: 'hidden',
   },
-  premonthlyNote: { fontSize: 10, color: 'rgba(240,244,255,0.30)', fontStyle: 'italic', marginBottom: 5 },
+  proMonthlyHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 6,
+    gap: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(30,144,255,0.12)',
+    backgroundColor: 'rgba(30,144,255,0.04)',
+  },
+  proMonthlyName: {
+    color: BLUE,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.15,
+  },
+  proMonthlyBody: {
+    padding: 14,
+    paddingTop: 12,
+  },
+  premonthlyNote: { fontSize: 10, color: 'rgba(240,244,255,0.40)', fontStyle: 'italic' },
   monthlyCtaBtn: {
     marginTop: 14,
     height: 50,

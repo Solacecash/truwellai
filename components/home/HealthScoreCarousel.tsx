@@ -2,6 +2,7 @@ import { Grade } from '@/components/ui/GradeCard';
 import { RingChart } from '@/components/ui/RingChart';
 import { SegmentedIndicator, SegmentedIndicatorRef } from '@/components/ui/SegmentedIndicator';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
+import { resolveLiveHealthMetrics, type ScanRow } from '@/lib/healthScores';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useTheme } from '@/theme/ThemeContext';
@@ -42,18 +43,22 @@ function toGradeLetter(raw: string | null | undefined): Grade | null {
 
 const SlideRow = forwardRef<
   SegmentedIndicatorRef,
-  { label: string; pct: number; color: string; animate: boolean }
->(function SlideRow({ label, pct, color, animate }, ref) {
+  { label: string; pct: number; color: string; animate: boolean; valueLabel?: string }
+>(function SlideRow({ label, pct, color, animate, valueLabel }, ref) {
   const { theme } = useTheme();
   const innerRef = useRef<SegmentedIndicatorRef | null>(null);
   useImperativeHandle(ref, () => ({
     triggerAnimation: () => innerRef.current?.triggerAnimation(),
   }));
+  const displayValue = valueLabel ?? (pct > 0 ? `${Math.round(pct)}%` : '—');
   return (
     <View style={slideRowStyles.row}>
-      <Text style={[slideRowStyles.lbl, { color: theme.text3 }]} numberOfLines={1}>
-        {label}
-      </Text>
+      <View style={slideRowStyles.labelRow}>
+        <Text style={[slideRowStyles.lbl, { color: theme.text3 }]} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={[slideRowStyles.val, { color: theme.text2 }]}>{displayValue}</Text>
+      </View>
       <SegmentedIndicator
         ref={innerRef}
         value={Math.min(100, Math.max(0, pct))}
@@ -69,29 +74,29 @@ const SlideRow = forwardRef<
 
 const slideRowStyles = StyleSheet.create({
   row: { gap: 4, width: '100%', overflow: 'hidden' },
-  lbl: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  lbl: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', flex: 1 },
+  val: { fontSize: 10, fontWeight: '800', fontVariant: ['tabular-nums'] },
 });
 
 type SlideKey = 'lifestyle' | 'scan' | 'wellness' | 'personal';
 
 export function HealthScoreCarousel({
   scoreLoading,
-  overallScore,
-  overallGrade,
-  skinPct,
-  purityPct,
-  allergenPct,
+  storedScores,
   scoreDelta7d,
   streakDays,
   xpLevel,
 }: {
   scoreLoading: boolean;
-  /** 0–100 overall score from user_scores (for ring when lifestyle metrics are sparse). */
-  overallScore: number;
-  overallGrade: string | null | undefined;
-  skinPct: number;
-  purityPct: number;
-  allergenPct: number;
+  /** Cached row from user_scores; scan-derived metrics take priority when available. */
+  storedScores: {
+    overall_score?: number | null;
+    overall_grade?: string | null;
+    skin_safety_pct?: number | null;
+    ingredient_purity_pct?: number | null;
+    allergen_risk_pct?: number | null;
+  } | null;
   scoreDelta7d: number;
   streakDays: number;
   xpLevel: number;
@@ -122,17 +127,114 @@ export function HealthScoreCarousel({
   });
 
   const scansAggQ = useQuery({
-    queryKey: ['scan-agg-carousel', userId],
+    queryKey: ['scan-metrics-live', userId],
+    enabled: !!userId,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const [scansRes, historyRes] = await Promise.all([
+        supabase
+          .from('scans')
+          .select('score, grade, result_summary, raw_payload, created_at')
+          .eq('user_id', userId!)
+          .order('created_at', { ascending: false })
+          .limit(40),
+        supabase
+          .from('scan_history')
+          .select(
+            'overall_score, overall_grade, skin_safety_pct, ingredient_purity_pct, allergen_risk_pct, personalized_risk_flags, created_at'
+          )
+          .eq('user_id', userId!)
+          .order('created_at', { ascending: false })
+          .limit(40),
+      ]);
+
+      const fromScans: ScanRow[] = (scansRes.data ?? []).map((r) => ({
+        score: r.score,
+        grade: r.grade,
+        result_summary: r.result_summary,
+        raw_payload: r.raw_payload,
+      }));
+
+      const fromHistory: ScanRow[] = (historyRes.data ?? []).map((r) => ({
+        score: r.overall_score,
+        grade: r.overall_grade,
+        skin_safety_pct: r.skin_safety_pct,
+        ingredient_purity_pct: r.ingredient_purity_pct,
+        allergen_risk_pct: r.allergen_risk_pct,
+        personalized_risk_flags: r.personalized_risk_flags,
+      }));
+
+      return fromScans.length > 0 ? fromScans : fromHistory;
+    },
+  });
+
+  const liveMetrics = useMemo(
+    () => resolveLiveHealthMetrics(storedScores, scansAggQ.data ?? []),
+    [storedScores, scansAggQ.data]
+  );
+
+  const skinPct = liveMetrics.skinSafetyPct;
+  const purityPct = liveMetrics.ingredientPurityPct;
+  const allergenPct = liveMetrics.allergenRiskPct;
+  const overallScore = liveMetrics.overallScore;
+  const overallGrade = liveMetrics.overallGrade ?? storedScores?.overall_grade ?? null;
+
+  const flaggedCount = useMemo(() => {
+    let n = 0;
+    for (const r of scansAggQ.data ?? []) {
+      const flags = r.personalized_risk_flags as string[] | undefined;
+      if (flags?.length) n += flags.length;
+      const summary = r.result_summary as { riskNotes?: string[] } | null | undefined;
+      if (summary?.riskNotes?.length) n += summary.riskNotes.length;
+    }
+    if (n === 0 && liveMetrics.scanCount > 0) {
+      return Math.max(0, Math.round((100 - skinPct) / 12));
+    }
+    return n;
+  }, [scansAggQ.data, liveMetrics.scanCount, skinPct]);
+
+  const topCategoryQ = useQuery({
+    queryKey: ['scan-flag-categories', userId],
     enabled: !!userId,
     staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('scan_history')
-        .select('score, grade, personalized_risk_flags')
+        .select('personalized_risk_flags')
         .eq('user_id', userId!)
         .limit(80);
-      if (error) return { rows: [] as Record<string, unknown>[], topCategory: null as string | null };
-      const rows = (data ?? []) as Record<string, unknown>[];
+      if (error) {
+        const { data: scanData } = await supabase
+          .from('scans')
+          .select('result_summary')
+          .eq('user_id', userId!)
+          .limit(80);
+        const rows = scanData ?? [];
+        const catCounts: Record<string, number> = {};
+        for (const r of rows) {
+          const summary = r.result_summary as { riskNotes?: string[]; high_risk_ingredients?: { name: string; reason: string }[] } | null;
+          const flags = summary?.riskNotes ?? summary?.high_risk_ingredients?.map((h) => h.reason) ?? [];
+          for (const f of flags) {
+            const low = f.toLowerCase();
+            let bucket = 'Other';
+            if (/preserv|paraben|benzoate/i.test(low)) bucket = 'Preservatives';
+            else if (/fragrance|perfume|scent/i.test(low)) bucket = 'Fragrances';
+            else if (/sulfate|sls/i.test(low)) bucket = 'Sulfates';
+            else if (/dye|color/i.test(low)) bucket = 'Colorants';
+            catCounts[bucket] = (catCounts[bucket] ?? 0) + 1;
+          }
+        }
+        let topCategory: string | null = null;
+        let max = 0;
+        for (const [k, v] of Object.entries(catCounts)) {
+          if (v > max) {
+            max = v;
+            topCategory = k;
+          }
+        }
+        return max > 0 ? topCategory : null;
+      }
+      const rows = data ?? [];
       const catCounts: Record<string, number> = {};
       for (const r of rows) {
         const flags = r.personalized_risk_flags as string[] | null | undefined;
@@ -155,7 +257,7 @@ export function HealthScoreCarousel({
           topCategory = k;
         }
       }
-      return { rows, topCategory: max > 0 ? topCategory : null };
+      return max > 0 ? topCategory : null;
     },
   });
 
@@ -175,15 +277,15 @@ export function HealthScoreCarousel({
   });
 
   const scansCountQ = useQuery({
-    queryKey: ['scans-count', userId],
+    queryKey: ['scans-count-carousel', userId],
     enabled: !!userId,
     staleTime: 30 * 1000,
     queryFn: async () => {
-      const { count } = await supabase
-        .from('scan_history')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId!);
-      return count ?? 0;
+      const [a, b] = await Promise.all([
+        supabase.from('scans').select('id', { count: 'exact', head: true }).eq('user_id', userId!),
+        supabase.from('scan_history').select('id', { count: 'exact', head: true }).eq('user_id', userId!),
+      ]);
+      return Math.max(a.count ?? 0, b.count ?? 0);
     },
   });
 
@@ -201,26 +303,19 @@ export function HealthScoreCarousel({
   const streakPct = Math.min(100, (streakDays / 21) * 100);
 
   const hasLifestyleSignal =
-    skinPct > 0 || purityPct > 0 || allergenPct > 0 || hydrationPct > 0 || streakPct > 0;
+    liveMetrics.scanCount > 0 ||
+    skinPct > 0 ||
+    purityPct > 0 ||
+    allergenPct > 0 ||
+    hydrationPct > 0 ||
+    streakDays > 0;
   const lifestyleAvg = hasLifestyleSignal
     ? (skinPct + purityPct + allergenPct + hydrationPct + streakPct) / 5
     : 0;
-  const noScoreYet = !hasLifestyleSignal && !overallGrade;
+  const noScoreYet = liveMetrics.scanCount === 0 && overallScore === 0 && hydrationPct === 0 && streakDays === 0;
   const lifestyleGrade = hasLifestyleSignal
     ? toGradeFromPct(lifestyleAvg)
     : (toGradeLetter(overallGrade) ?? null);
-
-  const flaggedCount = useMemo(() => {
-    let n = 0;
-    for (const r of scansAggQ.data?.rows ?? []) {
-      const flags = r.personalized_risk_flags as string[] | undefined;
-      if (flags?.length) n += flags.length;
-    }
-    if (n === 0 && (scansAggQ.data?.rows?.length ?? 0) > 0) {
-      return Math.max(0, Math.round((100 - skinPct) / 12));
-    }
-    return n;
-  }, [scansAggQ.data?.rows, skinPct]);
 
   const euProxy = purityPct;
   const fdaProxy = skinPct;
@@ -329,6 +424,7 @@ export function HealthScoreCarousel({
               pct={hydrationPct}
               color={theme.teal}
               animate={focused === 0}
+              valueLabel={waterGoal > 0 ? `${waterCups}/${waterGoal} cups` : '—'}
             />
             <SlideRow
               ref={segRef4}
@@ -336,6 +432,7 @@ export function HealthScoreCarousel({
               pct={streakPct}
               color={theme.purple}
               animate={focused === 0}
+              valueLabel={streakDays > 0 ? `${streakDays} day${streakDays === 1 ? '' : 's'}` : '—'}
             />
           </View>
         </View>
@@ -371,9 +468,9 @@ export function HealthScoreCarousel({
               </Text>
             </View>
           </View>
-          {scansAggQ.data?.topCategory ? (
+          {topCategoryQ.data ? (
             <Text style={[styles.catLine, { color: theme.text3 }]}>
-              Your most flagged category: {scansAggQ.data.topCategory}
+              Your most flagged category: {topCategoryQ.data}
             </Text>
           ) : (
             <Text style={[styles.catLine, { color: theme.text3 }]}>

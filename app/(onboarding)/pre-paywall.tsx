@@ -42,7 +42,7 @@ const FEATURES = [
 
   'Snap food for instant calorie intelligence',
 
-  'Sofia AI health assistant',
+  'Sofia · AI Wellness Intelligence',
 
   'Live NAFDAC / FDA / WHO recall alerts',
 

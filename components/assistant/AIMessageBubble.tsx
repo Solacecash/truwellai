@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import Svg, { Line, Path, Rect } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeContext';
 import { hapticLight } from '@/lib/haptics';
-import { DrTruWellAvatar } from '@/components/ai/DrTruWellAvatar';
+import { SofiaAvatar } from '@/components/ai/SofiaAvatar';
 import AIDisclosureBadge from '@/components/legal/AIDisclosureBadge';
 import { LEGAL } from '@/lib/legalContent';
 import { MarkdownText } from './MarkdownText';
@@ -117,7 +117,7 @@ export function AIMessageBubble({
     <View style={[styles.wrapper, isUser ? styles.userWrapper : styles.aiWrapper]}>
       {!isUser && (
         <View style={styles.aiAvatarWrap} pointerEvents="none">
-          <DrTruWellAvatar size="small" />
+          <SofiaAvatar size="small" teal={theme.teal} gold={theme.gold} purple={theme.purple} />
         </View>
       )}
       <View style={styles.bubbleContainer}>

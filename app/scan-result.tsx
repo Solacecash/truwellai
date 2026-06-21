@@ -109,6 +109,8 @@ export default function ScanResultScreen() {
     incrementScanCount();
     void recordWellnessActivityDay();
     void queryClient.invalidateQueries({ queryKey: ['scans-count', userId] });
+    void queryClient.invalidateQueries({ queryKey: ['scan-metrics-live', userId] });
+    void queryClient.invalidateQueries({ queryKey: ['user-score', userId] });
   }, [result, incrementScanCount, queryClient, userId]);
 
   // ?? Preserved: alternatives fetching ????????????????????????????????????

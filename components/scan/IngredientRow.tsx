@@ -81,11 +81,11 @@ export function IngredientRow({ ingredient }: Props) {
 
       <Animated.View style={expandStyle}>
         <View style={styles.detail}>
-          {ingredient.description ? (
-            <Text style={[styles.description, { color: theme.text2 }]}>
-              {ingredient.description}
-            </Text>
-          ) : null}
+          <Text style={[styles.description, { color: theme.text2 }]}>
+            {ingredient.description
+              ? ingredient.description
+              : 'No additional safety notes available for this ingredient yet.'}
+          </Text>
           <View style={styles.metaRow}>
             {ingredient.ewg_score !== undefined && (
               <Text style={[styles.meta, { color: theme.text3 }]}>

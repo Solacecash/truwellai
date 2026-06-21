@@ -484,7 +484,7 @@ function RootNav() {
       <Stack.Screen name="(auth)"                    options={{ headerShown: false }} />
       <Stack.Screen name="(onboarding)"              options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)"                    options={{ headerShown: false }} />
-      <Stack.Screen name="scan-result"               options={{ title: 'Scan insight', presentation: 'modal' }} />
+        <Stack.Screen name="scan-result"               options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="scan-ocr"                  options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="comparison"                options={{ title: 'Compare' }} />
       <Stack.Screen name="assistant"                 options={{ headerShown: false, presentation: 'modal' }} />

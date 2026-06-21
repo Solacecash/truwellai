@@ -865,6 +865,11 @@ serve(async (req) => {
         // meal_plans stores foreign keys into meals, so each
         // AI-generated meal must first be inserted into meals
         // to obtain a real id before linking it into meal_plans.
+        // Wrapped in its own function and run via
+        // EdgeRuntime.waitUntil below so it never blocks the
+        // response returned to the client (previously caused
+        // an EarlyDrop timeout under load).
+        const persistMealPlan = async () => {
         try {
           const reqUserId = verifiedUserId;
           if (reqUserId && Array.isArray(meal_plan) && meal_plan.length > 0) {
@@ -967,10 +972,23 @@ serve(async (req) => {
             persistErr
           );
         }
+      };
 
-        return new Response(JSON.stringify({ meal_plan, grocery_list }), {
-          headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
-        });
+      // Persist in the background — the client already has the
+      // full meal plan from this response and does not need to
+      // wait on these writes. This is what previously caused the
+      // function to run past its execution window (EarlyDrop).
+      // @ts-ignore EdgeRuntime is a Deno Deploy global, not typed in this project's tsconfig
+      if (typeof EdgeRuntime !== 'undefined') {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(persistMealPlan());
+      } else {
+        void persistMealPlan();
+      }
+
+      return new Response(JSON.stringify({ meal_plan, grocery_list }), {
+        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+      });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         return new Response(JSON.stringify({ error: msg, raw: dietText.slice(0, 2000) }), {

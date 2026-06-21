@@ -24,10 +24,10 @@ export default function Index() {
     const routeSession = async (_session: Session) => {
       try {
         if (!mounted) return;
-        router.replace('/enter' as never);
+        router.replace('/(tabs)' as never);
       } catch (err) {
         if (__DEV__) console.error('[index] routeSession error:', err);
-        if (mounted) router.replace('/enter' as never);
+        if (mounted) router.replace('/(tabs)' as never);
       }
     };
 

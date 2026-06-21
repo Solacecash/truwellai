@@ -13,6 +13,23 @@ const { allowLocalSupabaseFromEnv, sanitizeSupabaseProjectUrl } = require('./lib
 
 const rawSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 
+/** iOS client ID → reversed URL scheme required by the Google Sign-In Expo config plugin. */
+function iosUrlSchemeFromClientId(iosClientId: string): string | undefined {
+  const trimmed = iosClientId.trim();
+  const match = trimmed.match(/^([\w-]+)\.apps\.googleusercontent\.com$/);
+  if (!match) return undefined;
+  return `com.googleusercontent.apps.${match[1]}`;
+}
+
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '';
+const googleIosUrlScheme = googleIosClientId
+  ? iosUrlSchemeFromClientId(googleIosClientId)
+  : undefined;
+
+const googleSignInPlugin: NonNullable<ExpoConfig['plugins']>[number] = googleIosUrlScheme
+  ? ['@react-native-google-signin/google-signin', { iosUrlScheme: googleIosUrlScheme }]
+  : '@react-native-google-signin/google-signin';
+
 const withAdaptyManifestFix: ConfigPlugin = (config) => {
   return withAndroidManifest(config, (config) => {
     const application = config.modResults.manifest.application?.[0];
@@ -55,7 +72,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'for safety analysis.',
       NSPhotoLibraryUsageDescription: 'TruWell AI accesses your photo library to upload product images for ingredient analysis.',
       NSUserNotificationUsageDescription: 'TruWell AI sends you personalized health alerts and safety notifications.',
-      NSMicrophoneUsageDescription: 'TruWell AI uses your microphone so you can talk to the health assistant instead of typing.',
+      NSMicrophoneUsageDescription: 'TruWell AI uses your microphone so you can talk to Sofia instead of typing.',
       NSFaceIDUsageDescription: 'TruWell AI uses Face ID to sign you in instantly',
       ITSAppUsesNonExemptEncryption: false,
     },
@@ -90,7 +107,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: './assets/images/favicon.png',
   },
   plugins: [
-    '@react-native-google-signin/google-signin',
+    googleSignInPlugin,
     'expo-dev-client',
     'expo-apple-authentication',
     'expo-router',
@@ -143,7 +160,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-audio',
       {
-        microphonePermission: 'TruWell AI uses your microphone so you can speak to the health assistant.',
+        microphonePermission: 'TruWell AI uses your microphone so you can speak to Sofia.',
       },
     ],
     'react-native-adapty',
