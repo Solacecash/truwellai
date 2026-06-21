@@ -1016,9 +1016,10 @@ const styles = StyleSheet.create({
   },
   signInRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
+    paddingHorizontal: 16,
     marginTop: 20,
     marginBottom: 8,
   },

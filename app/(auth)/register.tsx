@@ -883,9 +883,10 @@ const fs = StyleSheet.create({
 
   signInRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
+    paddingHorizontal: 16,
     marginTop: 12,
   },
   signInPrompt: { fontSize: 13 },
