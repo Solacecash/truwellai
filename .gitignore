@@ -37,6 +37,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# release signing secrets — never commit
+gradle.properties
+
 # generated native folders
 /ios
 /android
