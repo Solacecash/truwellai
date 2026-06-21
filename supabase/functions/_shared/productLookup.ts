@@ -53,7 +53,7 @@ async function lookupOpenFoodFacts(
       `allergens_tags,nutriments,image_front_url,` +
       `quantity,categories,product_type`,
       {
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000),
         headers: {
           'User-Agent':
             'TruWellAI/1.0 (contact@truwellai.xyz)',
@@ -118,7 +118,7 @@ async function lookupOpenBeautyFacts(
       `?fields=product_name,brands,ingredients_text,` +
       `image_front_url,quantity,categories`,
       {
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000),
         headers: {
           'User-Agent':
             'TruWellAI/1.0 (contact@truwellai.xyz)',
@@ -169,7 +169,7 @@ async function lookupOpenProductsFacts(
       `?fields=product_name,brands,ingredients_text,` +
       `image_front_url,quantity,categories`,
       {
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000),
         headers: {
           'User-Agent':
             'TruWellAI/1.0 (contact@truwellai.xyz)',
@@ -268,7 +268,7 @@ async function lookupOpenFoodFactsGlobal(
         `?fields=product_name,brands,ingredients_text,` +
         `allergens_tags,nutriments,image_front_url,quantity,categories`,
         {
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000),
         headers: {
           'User-Agent':
             'TruWellAI/1.0 (contact@truwellai.xyz)',
